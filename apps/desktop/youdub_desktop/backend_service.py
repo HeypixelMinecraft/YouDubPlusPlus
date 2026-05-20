@@ -19,16 +19,7 @@ class BackendService:
     def start(self) -> None:
         if self.process and self.process.poll() is None:
             return
-        command = [
-            sys.executable,
-            "-m",
-            "uvicorn",
-            "backend.app.main:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(self.port),
-        ]
+        command = self._command()
         self.process = subprocess.Popen(
             command,
             cwd=str(self.repo_root),
@@ -68,3 +59,17 @@ class BackendService:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind(("127.0.0.1", 0))
             return int(sock.getsockname()[1])
+
+    def _command(self) -> list[str]:
+        if getattr(sys, "frozen", False):
+            return [sys.executable, "--backend", str(self.port)]
+        return [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "backend.app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(self.port),
+        ]

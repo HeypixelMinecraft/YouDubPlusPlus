@@ -1,0 +1,53 @@
+name: Build YouDubPlusPlus
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  windows-desktop:
+    name: Windows desktop
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Create environment
+        run: |
+          uv venv --python 3.12 .venv
+          uv pip install -r requirements-ci.txt
+
+      - name: Run backend smoke tests
+        run: |
+          .\.venv\Scripts\python.exe -m pytest backend/tests/test_index_tts.py backend/tests/test_pipeline.py
+
+      - name: Compile desktop sources
+        run: |
+          .\.venv\Scripts\python.exe -m compileall apps\desktop\youdub_desktop apps\desktop\main.py backend\app
+
+      - name: Import desktop entrypoint
+        run: |
+          .\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0, 'apps/desktop'); import youdub_desktop.main; from youdub_desktop.ui.app_window import AppWindow; print('desktop imports ok')"
+
+      - name: Build desktop package
+        run: |
+          .\.venv\Scripts\pyinstaller.exe --noconfirm apps\desktop\YouDubPlusPlus.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouDubPlusPlus-windows
+          path: dist/YouDubPlusPlus

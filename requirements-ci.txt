@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
+python-multipart
+httpx
+openai
+pytest
+pydub
+PyQt5
+PyQt-Fluent-Widgets
+pyinstaller
