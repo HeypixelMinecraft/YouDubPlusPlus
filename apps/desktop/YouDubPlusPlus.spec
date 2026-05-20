@@ -10,7 +10,7 @@ a = Analysis(
     pathex=[str(ROOT), str(ROOT / "apps" / "desktop")],
     binaries=[],
     datas=[
-        (str(ROOT / "apps" / "web" / "public" / "youdub-icon.svg"), "assets"),
+        (str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.svg"), "assets"),
         (str(ROOT / "submodule" / "demucs" / "demucs"), "submodule/demucs/demucs"),
         (str(ROOT / "submodule" / "demucs" / "conf"), "submodule/demucs/conf"),
         (str(ROOT / "submodule" / "demucs" / "README.md"), "submodule/demucs"),

@@ -15,8 +15,6 @@ downloads/
 eggs/
 .eggs/
 lib/
-!apps/web/src/lib/
-!apps/web/src/lib/**
 lib64/
 parts/
 sdist/
@@ -177,13 +175,6 @@ data/
 workfolder/
 env.txt
 checkpoints/
-
-# Next.js
-apps/web/.next/
-apps/web/out/
-apps/web/node_modules/
-apps/web/.env*
-!apps/web/.env.example
 
 # Python
 backend/.pytest_cache/

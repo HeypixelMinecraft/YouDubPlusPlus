@@ -224,23 +224,24 @@ def test_cors_origins_include_runtime_configuration(monkeypatch):
 
     origins = main.cors_origins()
 
-    assert "http://localhost:3000" in origins
+    assert "http://localhost:3000" not in origins
     assert "http://172.27.2.90:3000" in origins
     assert "http://100.94.222.54:3000" in origins
 
 
-def test_cors_origin_regex_allows_common_development_hosts(monkeypatch):
-    monkeypatch.delenv("CORS_ALLOW_ORIGIN_REGEX", raising=False)
+def test_cors_origin_regex_uses_runtime_configuration(monkeypatch):
+    monkeypatch.setenv("CORS_ALLOW_ORIGIN_REGEX", r"^https?://192\.168\.1\.2:8000$")
 
     regex = re.compile(main.cors_origin_regex())
 
-    assert regex.fullmatch("http://0.0.0.0:3000")
-    assert regex.fullmatch("http://192.168.1.2:3000")
-    assert regex.fullmatch("http://10.0.0.5:3000")
-    assert regex.fullmatch("http://172.27.2.90:3000")
-    assert regex.fullmatch("http://100.94.222.54:3000")
-    assert not regex.fullmatch("http://example.com:3000")
-    assert not regex.fullmatch("http://192.168.1.2:4000")
+    assert regex.fullmatch("http://192.168.1.2:8000")
+    assert not regex.fullmatch("http://localhost:3000")
+
+
+def test_cors_origin_regex_is_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("CORS_ALLOW_ORIGIN_REGEX", raising=False)
+
+    assert main.cors_origin_regex() is None
 
 
 def test_openai_models_use_form_key_without_leaking_it(monkeypatch, tmp_path):

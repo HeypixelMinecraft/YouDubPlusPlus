@@ -1,0 +1,9 @@
+fastapi
+python-dotenv
+pydantic
+python-multipart
+httpx
+openai
+requests
+pytest
+pydub

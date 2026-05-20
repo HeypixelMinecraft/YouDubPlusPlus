@@ -18,7 +18,7 @@ The first screen supports URL tasks, local video upload, task history, task deta
 
 ## Build
 
-GitHub Actions builds Windows, macOS, and Linux artifacts on every push to `master`.
+GitHub Actions runs fast smoke tests on every push and PR. Full Windows, macOS, and Linux PyInstaller builds run on manual workflow dispatch or `v*` release tags.
 To build locally:
 
 ```bash
