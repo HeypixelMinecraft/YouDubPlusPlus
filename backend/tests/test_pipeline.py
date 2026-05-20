@@ -92,8 +92,8 @@ def test_pipeline_failure_stops_following_stages(monkeypatch, tmp_path):
     assert task["error_message"] == "asr exploded"
 
 
-def test_tts_stage_uses_index_tts_adapter(monkeypatch, tmp_path):
-    from backend.app.adapters import index_tts
+def test_tts_stage_uses_configured_tts_adapter(monkeypatch, tmp_path):
+    from backend.app.adapters import tts
 
     configure_db(monkeypatch, tmp_path)
     task_id = database.create_task("https://www.youtube.com/watch?v=abcdefghijk")
@@ -108,9 +108,9 @@ def test_tts_stage_uses_index_tts_adapter(monkeypatch, tmp_path):
         called["args"] = (translation_file, vocals_dir, session)
         output_dir.mkdir(parents=True)
         (output_dir / "0001.wav").write_bytes(b"wav")
-        return output_dir
+        return output_dir, "FakeTTS"
 
-    monkeypatch.setattr(index_tts, "generate_tts", fake_generate_tts)
+    monkeypatch.setattr(tts, "generate_tts", fake_generate_tts)
 
     runner._tts(database.get_task(task_id))
 

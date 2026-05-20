@@ -13,6 +13,7 @@ openunmix
 openai-whisper
 spacy
 git+https://github.com/index-tts/index-tts.git
+voxcpm
 soundfile
 pydub
 librosa

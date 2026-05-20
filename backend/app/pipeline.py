@@ -223,14 +223,14 @@ class PipelineRunner:
         self.stage_message("split_audio", "Created vocal reference segments")
 
     def _tts(self, _: dict) -> None:
-        from .adapters.index_tts import generate_tts
+        from .adapters.tts import generate_tts
 
         session = _require(self.artifacts.session, "session")
         translation_file = _require(self.artifacts.translation_file, "translation_file")
         vocals_dir = _require(self.artifacts.vocals_dir, "vocals_dir")
-        self.artifacts.tts_dir = generate_tts(translation_file, vocals_dir, session)
+        self.artifacts.tts_dir, backend_name = generate_tts(translation_file, vocals_dir, session)
         wav_count = len(list(self.artifacts.tts_dir.glob("*.wav")))
-        self.stage_message("tts", f"Generated {wav_count} TTS clips -> {self.artifacts.tts_dir}")
+        self.stage_message("tts", f"[{backend_name}] Generated {wav_count} TTS clips -> {self.artifacts.tts_dir}")
 
     def _merge_audio(self, _: dict) -> None:
         from .adapters.audio import merge_tts_audio

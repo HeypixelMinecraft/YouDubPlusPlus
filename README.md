@@ -157,7 +157,7 @@ npm --prefix apps/web install --registry=https://registry.npmmirror.com
 
 如果 Aliyun 镜像中某个 Python 包暂时不可用，再单独对失败的包使用 Tsinghua 源重试；不要把多个镜像混在同一条 resolver 命令里。
 
-IndexTTS 会通过 `requirements.txt` 从 GitHub 仓库安装。如果安装失败，请按上游说明 <https://github.com/index-tts/index-tts> 排查；上游推荐在自己的环境流程中使用 `uv`。请从 HuggingFace 或 ModelScope 下载 IndexTTS2 checkpoints，例如 `IndexTeam/IndexTTS-2`，并把 `INDEXTTS_MODEL_DIR` 指向包含 `config.yaml` 的目录。也可以设置 `INDEXTTS_MODEL_SOURCE` 和 `INDEXTTS_MODEL_ID` 使用 YouDub 提供的尽力自动下载路径。
+IndexTTS 会通过 `requirements.txt` 从 GitHub 仓库安装。如果安装失败，请按上游说明 <https://github.com/index-tts/index-tts> 排查；上游推荐在自己的环境流程中使用 `uv`。请从 HuggingFace 或 ModelScope 下载 IndexTTS2 checkpoints，例如 `IndexTeam/IndexTTS-2`，并把 `INDEXTTS_MODEL_DIR` 指向包含 `config.yaml` 的目录。也可以设置 `INDEXTTS_MODEL_SOURCE` 和 `INDEXTTS_MODEL_ID` 使用 YouDub 提供的尽力自动下载路径。默认 `TTS_BACKEND=auto` 会先尝试 IndexTTS，失败后回退到 VoxCPM2；如果想强制 VoxCPM2，设置 `TTS_BACKEND=voxcpm`。
 
 ### 4. 配置环境
 
@@ -188,11 +188,14 @@ cp env.txt.example .env
 | `OPENAI_TRANSLATE_CONCURRENCY` | 翻译阶段的并发请求数，默认 `50`。 |
 | `YTDLP_PROXY_PORT` | yt-dlp 使用的本机代理端口，例如 `7890`。 |
 | `HTTP_PROXY` | 未在 UI 中设置代理端口时，yt-dlp 可读取的代理地址。 |
+| `TTS_BACKEND` | `auto`、`index_tts` 或 `voxcpm`。默认 `auto` 先尝试 IndexTTS，再回退 VoxCPM2。 |
 | `INDEXTTS_MODEL_DIR` / `INDEXTTS_CFG_PATH` | IndexTTS checkpoints 目录与 config.yaml 路径。 |
 | `INDEXTTS_MODEL_SOURCE` / `INDEXTTS_MODEL_ID` / `INDEXTTS_AUTO_DOWNLOAD` | （可选）自动下载 checkpoints（ModelScope/HuggingFace）。 |
 | `INDEXTTS_USE_FP16` / `INDEXTTS_USE_CUDA_KERNEL` / `INDEXTTS_USE_DEEPSPEED` | IndexTTS2 推理加速参数。 |
 | `INDEXTTS_MIN_REFERENCE_MS` | 参考音频最短长度（毫秒），不足则回退到更长的参考段。 |
 | `INDEXTTS_EMO_AUDIO_PROMPT` / `INDEXTTS_EMO_ALPHA` / `INDEXTTS_USE_EMO_TEXT` / `INDEXTTS_EMO_TEXT` | IndexTTS2 情绪控制（可选）。 |
+| `VOXCPM_MODEL` / `VOXCPM_MODEL_DIR` | VoxCPM2 的 ModelScope 模型名或本地模型目录，用于回退或强制 VoxCPM2 模式。 |
+| `VOXCPM_LOAD_DENOISER` / `VOXCPM_CFG_VALUE` / `VOXCPM_INFERENCE_TIMESTEPS` / `VOXCPM_MIN_REFERENCE_MS` | VoxCPM2 推理参数。 |
 | `CORS_ALLOW_ORIGINS` / `CORS_ALLOW_ORIGIN_REGEX` | 自定义前端访问来源。 |
 
 常见本机、局域网和 Tailscale 的 `:3000` 前端来源已默认允许；如果通过自定义域名访问前端，把完整 origin 追加到 `CORS_ALLOW_ORIGINS`，例如 `http://youdub.example.com:3000`。
@@ -285,7 +288,7 @@ YouTube / Bilibili URL
   -> 句子与时间范围整理
   -> OpenAI 兼容 API 预处理全文并逐句并发翻译
   -> 按句切分原始人声作为参考音频
-  -> IndexTTS 生成目标语言配音
+  -> IndexTTS 或 VoxCPM2 生成目标语言配音
   -> 对齐配音时长并与背景音混音
   -> FFmpeg 压制字幕并输出最终 mp4
 ```
@@ -310,7 +313,7 @@ YouTube / Bilibili URL
 - Source separation: Demucs source submodule
 - ASR: openai-whisper（默认 `large-v3-turbo`）
 - Translation: OpenAI-compatible Chat Completions API
-- TTS: IndexTTS
+- TTS: IndexTTS with VoxCPM2 fallback
 - Media processing: FFmpeg, pydub, librosa, audiostretchy
 
 ## 开发与测试

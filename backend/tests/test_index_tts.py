@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from pydub import AudioSegment
 
-from backend.app.adapters import index_tts
+from backend.app.adapters import index_tts, tts
 
 
 def _write_wav(path: Path, duration_ms: int) -> None:
@@ -180,3 +180,42 @@ def test_load_tts_reports_missing_checkpoints(monkeypatch, tmp_path):
 
     with pytest.raises(FileNotFoundError, match="INDEXTTS_MODEL_DIR"):
         index_tts._load_tts()
+
+
+def test_tts_auto_falls_back_to_voxcpm(monkeypatch, tmp_path):
+    monkeypatch.setenv("TTS_BACKEND", "auto")
+
+    def fail_index(*args, **kwargs):
+        raise RuntimeError("index failed")
+
+    calls = {}
+
+    def fake_vox(translation_file, vocals_dir, session):
+        calls["args"] = (translation_file, vocals_dir, session)
+        return tmp_path / "tts"
+
+    monkeypatch.setattr(tts, "_index_tts", lambda: fail_index)
+    monkeypatch.setattr(tts, "_voxcpm", lambda: fake_vox)
+
+    out, backend_name = tts.generate_tts(tmp_path / "a.json", tmp_path / "b", tmp_path / "c")
+
+    assert backend_name == "VoxCPM2"
+    assert calls["args"] == (tmp_path / "a.json", tmp_path / "b", tmp_path / "c")
+    assert out == tmp_path / "tts"
+
+
+def test_tts_forced_voxcpm(monkeypatch, tmp_path):
+    monkeypatch.setenv("TTS_BACKEND", "voxcpm")
+    calls = {}
+
+    def fake_vox(translation_file, vocals_dir, session):
+        calls["args"] = (translation_file, vocals_dir, session)
+        return tmp_path / "tts2"
+
+    monkeypatch.setattr(tts, "_voxcpm", lambda: fake_vox)
+
+    out, backend_name = tts.generate_tts(tmp_path / "a.json", tmp_path / "b", tmp_path / "c")
+
+    assert backend_name == "VoxCPM2"
+    assert calls["args"] == (tmp_path / "a.json", tmp_path / "b", tmp_path / "c")
+    assert out == tmp_path / "tts2"

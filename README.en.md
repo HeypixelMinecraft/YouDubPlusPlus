@@ -157,7 +157,7 @@ npm --prefix apps/web install --registry=https://registry.npmmirror.com
 
 Use Aliyun first. If a specific Python package is temporarily unavailable there, retry only that package with the Tsinghua mirror instead of mixing multiple mirrors in one resolver command.
 
-IndexTTS is installed from its GitHub repository through `requirements.txt`. If that install fails, follow the upstream setup notes at <https://github.com/index-tts/index-tts>; upstream recommends `uv` for its own environment workflow. Download the IndexTTS2 checkpoints from HuggingFace or ModelScope, for example `IndexTeam/IndexTTS-2`, then set `INDEXTTS_MODEL_DIR` to the checkpoint directory containing `config.yaml`. You can also set `INDEXTTS_MODEL_SOURCE` and `INDEXTTS_MODEL_ID` for YouDub's best-effort auto-download path.
+IndexTTS is installed from its GitHub repository through `requirements.txt`. If that install fails, follow the upstream setup notes at <https://github.com/index-tts/index-tts>; upstream recommends `uv` for its own environment workflow. Download the IndexTTS2 checkpoints from HuggingFace or ModelScope, for example `IndexTeam/IndexTTS-2`, then set `INDEXTTS_MODEL_DIR` to the checkpoint directory containing `config.yaml`. You can also set `INDEXTTS_MODEL_SOURCE` and `INDEXTTS_MODEL_ID` for YouDub's best-effort auto-download path. By default `TTS_BACKEND=auto` tries IndexTTS first and falls back to VoxCPM2; set `TTS_BACKEND=voxcpm` to force VoxCPM2.
 
 ### 4. Configure
 
@@ -188,11 +188,14 @@ Common environment variables:
 | `OPENAI_TRANSLATE_CONCURRENCY` | Parallel requests during translation. Default: `50`. |
 | `YTDLP_PROXY_PORT` | Local proxy port used by yt-dlp, for example `7890`. |
 | `HTTP_PROXY` | Proxy URL read by yt-dlp when no UI proxy port is set. |
+| `TTS_BACKEND` | `auto`, `index_tts`, or `voxcpm`. Default `auto` tries IndexTTS, then VoxCPM2. |
 | `INDEXTTS_MODEL_DIR` / `INDEXTTS_CFG_PATH` | IndexTTS checkpoints directory and config.yaml path. |
 | `INDEXTTS_MODEL_SOURCE` / `INDEXTTS_MODEL_ID` / `INDEXTTS_AUTO_DOWNLOAD` | (Optional) auto-download IndexTTS checkpoints from ModelScope/HuggingFace. |
 | `INDEXTTS_USE_FP16` / `INDEXTTS_USE_CUDA_KERNEL` / `INDEXTTS_USE_DEEPSPEED` | IndexTTS2 inference acceleration toggles. |
 | `INDEXTTS_MIN_REFERENCE_MS` | Minimum reference audio length (ms) before falling back to a longer clip. |
 | `INDEXTTS_EMO_AUDIO_PROMPT` / `INDEXTTS_EMO_ALPHA` / `INDEXTTS_USE_EMO_TEXT` / `INDEXTTS_EMO_TEXT` | Optional IndexTTS2 emotion controls. |
+| `VOXCPM_MODEL` / `VOXCPM_MODEL_DIR` | VoxCPM2 ModelScope model ID or local model directory, used for fallback or forced VoxCPM2 mode. |
+| `VOXCPM_LOAD_DENOISER` / `VOXCPM_CFG_VALUE` / `VOXCPM_INFERENCE_TIMESTEPS` / `VOXCPM_MIN_REFERENCE_MS` | VoxCPM2 inference controls. |
 | `CORS_ALLOW_ORIGINS` / `CORS_ALLOW_ORIGIN_REGEX` | Additional frontend origins. |
 
 Common localhost, LAN, and Tailscale `:3000` frontend origins are allowed by default. If you open the frontend through a custom hostname, add the full origin to `CORS_ALLOW_ORIGINS`, for example `http://youdub.example.com:3000`.
@@ -285,7 +288,7 @@ YouTube / Bilibili URL
   -> Sentence and timing normalization
   -> OpenAI-compatible API preprocesses the full transcript and translates sentences in parallel
   -> Original vocals are split into per-sentence reference clips
-  -> IndexTTS generates target-language voiceover
+  -> IndexTTS or VoxCPM2 generates target-language voiceover
   -> Voiceover timing is aligned and mixed with background audio
   -> FFmpeg burns subtitles and renders the final mp4
 ```
@@ -310,7 +313,7 @@ YouTube / Bilibili URL
 - Source separation: Demucs source submodule
 - ASR: openai-whisper, defaulting to `large-v3-turbo`
 - Translation: OpenAI-compatible Chat Completions API
-- TTS: IndexTTS
+- TTS: IndexTTS with VoxCPM2 fallback
 - Media processing: FFmpeg, pydub, librosa, audiostretchy
 
 ## Development and Tests

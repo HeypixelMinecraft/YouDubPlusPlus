@@ -132,7 +132,7 @@ const messages: Record<UiLanguage, Messages> = {
       asr_fix: "Split sentences",
       translate: "Translate",
       split_audio: "Split audio",
-      tts: "IndexTTS",
+      tts: "TTS",
       merge_audio: "Merge audio",
       merge_video: "Merge video",
       done: "Done",

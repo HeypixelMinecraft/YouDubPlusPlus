@@ -16,7 +16,7 @@ STAGES: tuple[StageSpec, ...] = (
     StageSpec("asr_fix", "Split sentences"),
     StageSpec("translate", "Translate"),
     StageSpec("split_audio", "Split audio"),
-    StageSpec("tts", "IndexTTS"),
+    StageSpec("tts", "TTS"),
     StageSpec("merge_audio", "Merge audio"),
     StageSpec("merge_video", "Merge video"),
 )
