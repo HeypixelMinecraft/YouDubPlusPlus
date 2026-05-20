@@ -2,22 +2,41 @@ name: Build YouDubPlusPlus
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
   pull_request:
-    branches: [main, master]
+    branches: [master]
   workflow_dispatch:
 
 jobs:
-  windows-desktop:
-    name: Windows desktop
-    runs-on: windows-latest
+  desktop:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows desktop
+            artifact: YouDubPlusPlus-windows
+          - os: macos-latest
+            name: macOS desktop
+            artifact: YouDubPlusPlus-macos
+          - os: ubuntu-latest
+            name: Linux desktop
+            artifact: YouDubPlusPlus-linux
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Install Linux Qt runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -32,22 +51,22 @@ jobs:
 
       - name: Run backend smoke tests
         run: |
-          .\.venv\Scripts\python.exe -m pytest backend/tests/test_index_tts.py backend/tests/test_pipeline.py
+          uv run python -m pytest backend/tests/test_index_tts.py backend/tests/test_pipeline.py
 
       - name: Compile desktop sources
         run: |
-          .\.venv\Scripts\python.exe -m compileall apps\desktop\youdub_desktop apps\desktop\main.py backend\app
+          uv run python -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
 
       - name: Import desktop entrypoint
         run: |
-          .\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0, 'apps/desktop'); import youdub_desktop.main; from youdub_desktop.ui.app_window import AppWindow; print('desktop imports ok')"
+          uv run python -c "import sys; sys.path.insert(0, 'apps/desktop'); import youdub_desktop.main; from youdub_desktop.ui.app_window import AppWindow; print('desktop imports ok')"
 
       - name: Build desktop package
         run: |
-          .\.venv\Scripts\pyinstaller.exe --noconfirm apps\desktop\YouDubPlusPlus.spec
+          uv run pyinstaller --noconfirm apps/desktop/YouDubPlusPlus.spec
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: YouDubPlusPlus-windows
+          name: ${{ matrix.artifact }}
           path: dist/YouDubPlusPlus
