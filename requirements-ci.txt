@@ -4,6 +4,8 @@ pydantic
 python-multipart
 httpx
 openai
+requests
+yt-dlp[default]
 pytest
 pydub
 PyQt5

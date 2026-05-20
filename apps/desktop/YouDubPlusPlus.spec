@@ -15,6 +15,9 @@ a = Analysis(
     hiddenimports=[
         "backend.app.main",
         "backend.app.pipeline",
+        "backend.app.adapters.ytdlp",
+        "requests",
+        "yt_dlp",
         "qfluentwidgets",
     ],
     hookspath=[],
