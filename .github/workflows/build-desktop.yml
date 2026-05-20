@@ -41,7 +41,7 @@ jobs:
           uv run python -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
 
   desktop:
-    name: ${{ matrix.name }}
+    name: Full build - ${{ matrix.name }}
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
