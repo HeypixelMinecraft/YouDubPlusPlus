@@ -130,9 +130,8 @@ Demucs is included as a source submodule, so do not skip `git submodule update`.
 Python:
 
 ```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -U pip
-.\.venv\Scripts\pip.exe install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+uv venv --python 3.12 .venv
+uv pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 ```
 
 Frontend:
@@ -146,9 +145,8 @@ npm --prefix apps/web install --registry=https://registry.npmmirror.com
 Python:
 
 ```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -U pip
-.venv/bin/pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+uv venv --python 3.12 .venv
+uv pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 ```
 
 Frontend:
@@ -242,6 +240,16 @@ http://localhost:3000
 ```
 
 When opening the app from LAN, WSL2, or another machine, use the actual frontend host IP or hostname, for example `http://192.168.1.20:3000`. The backend listens on `0.0.0.0:8000`, and the frontend listens on `0.0.0.0:3000`.
+
+#### Desktop app
+
+The PyQt desktop app starts its own local FastAPI backend automatically:
+
+```powershell
+python apps/desktop/main.py
+```
+
+It exposes the same task creation, upload, progress, log, final-video, and settings workflows as the web UI.
 
 ## Using the Web UI
 

@@ -130,9 +130,8 @@ Demucs 以源码子模块引入，请不要跳过 `git submodule update`。
 Python 依赖：
 
 ```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -U pip
-.\.venv\Scripts\pip.exe install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+uv venv --python 3.12 .venv
+uv pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 ```
 
 前端依赖：
@@ -146,9 +145,8 @@ npm --prefix apps/web install --registry=https://registry.npmmirror.com
 Python 依赖：
 
 ```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -U pip
-.venv/bin/pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+uv venv --python 3.12 .venv
+uv pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 ```
 
 前端依赖：
@@ -242,6 +240,16 @@ http://localhost:3000
 ```
 
 如果从局域网、WSL2 或远程机器访问，浏览器里使用运行前端机器的实际 IP 或主机名，例如 `http://192.168.1.20:3000`。后端默认监听 `0.0.0.0:8000`，前端默认监听 `0.0.0.0:3000`。
+
+#### 桌面端
+
+PyQt 桌面端会自动启动本地 FastAPI 后端：
+
+```powershell
+python apps/desktop/main.py
+```
+
+桌面端提供任务创建、上传、进度、日志、最终视频和运行设置等与 Web UI 对齐的核心流程。
 
 ## 页面里怎么用
 

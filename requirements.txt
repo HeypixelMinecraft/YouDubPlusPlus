@@ -20,3 +20,5 @@ audiostretchy
 numpy
 pytest
 httpx
+PyQt5
+PyQt-Fluent-Widgets
