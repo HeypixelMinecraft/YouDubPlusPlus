@@ -83,6 +83,7 @@ jobs:
         run: |
           uv venv --python 3.12 .venv
           uv pip install -r requirements-ci.txt
+          uv pip install --upgrade pyinstaller
 
       - name: Run backend smoke tests
         run: |
