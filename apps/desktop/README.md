@@ -2,7 +2,7 @@
 
 PyQt5 desktop UI built with PyQt-Fluent-Widgets.
 
-The app starts the FastAPI backend as a local subprocess, waits for `/api/health`, then talks to it through `http://127.0.0.1:<port>/api/...`.
+The app runs the YouDub backend modules in the same desktop process. It does not start a localhost HTTP server.
 
 ## Run
 

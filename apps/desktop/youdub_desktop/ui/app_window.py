@@ -4,39 +4,32 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
-from PyQt5.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
+from PyQt5.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, QUrl, pyqtSignal
 from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtCore import QUrl
-from PyQt5.QtWidgets import (
-    QFileDialog,
-    QGridLayout,
-    QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QMainWindow,
-    QMessageBox,
-    QTableWidget,
-    QTableWidgetItem,
-    QTabWidget,
-    QVBoxLayout,
-    QWidget,
-)
+from PyQt5.QtWidgets import QFileDialog, QFrame, QGridLayout, QHBoxLayout, QMessageBox, QVBoxLayout, QWidget
 
-from ..api_client import ApiClient
-from ..backend_service import BackendService
-from .fluent_compat import (
+from qfluentwidgets import (
     BodyLabel,
+    CardWidget,
     ComboBox,
+    FluentIcon as FIF,
+    FluentWindow,
+    InfoBar,
+    InfoBarPosition,
     LineEdit,
     PlainTextEdit,
     PrimaryPushButton,
     ProgressBar,
     PushButton,
+    StrongBodyLabel,
     SubtitleLabel,
+    TableWidget,
     TextEdit,
     Theme,
     setTheme,
 )
+
+from ..direct_client import DirectClient
 
 
 class WorkerSignals(QObject):
@@ -44,15 +37,13 @@ class WorkerSignals(QObject):
     error = pyqtSignal(str)
 
 
-class ApiJob(QRunnable):
-    def __init__(self, fn: Callable[[], Any], on_done: Callable[[Any], None], on_error: Callable[[str], None]):
+class Job(QRunnable):
+    def __init__(self, fn: Callable[[], Any], done: Callable[[Any], None], error: Callable[[str], None]):
         super().__init__()
         self.fn = fn
-        self.on_done = on_done
-        self.on_error = on_error
         self.signals = WorkerSignals()
-        self.signals.done.connect(on_done)
-        self.signals.error.connect(on_error)
+        self.signals.done.connect(done)
+        self.signals.error.connect(error)
 
     def run(self) -> None:
         try:
@@ -61,21 +52,16 @@ class ApiJob(QRunnable):
             self.signals.error.emit(str(exc))
 
 
-def _fmt(value: str | None) -> str:
-    return value or "-"
-
-
-def _is_active(status: str | None) -> bool:
+def _active(status: str | None) -> bool:
     return status in {"queued", "running"}
 
 
-class AppWindow(QMainWindow):
+class AppWindow(FluentWindow):
     def __init__(self, repo_root: Path) -> None:
         super().__init__()
         setTheme(Theme.AUTO)
         self.repo_root = repo_root
-        self.backend = BackendService(repo_root)
-        self.api: ApiClient | None = None
+        self.client: DirectClient | None = None
         self.pool = QThreadPool.globalInstance()
         self.tasks: list[dict[str, Any]] = []
         self.current_task_id: str | None = None
@@ -83,118 +69,144 @@ class AppWindow(QMainWindow):
         self.upload_file: Path | None = None
         self._refresh_busy = False
 
-        self.setWindowTitle("YouDub Desktop")
-        self.resize(1180, 780)
+        self.setWindowTitle("YouDubPlusPlus")
+        self.resize(1220, 820)
+        self.setMinimumSize(980, 680)
+        if hasattr(self, "setMicaEffectEnabled"):
+            self.setMicaEffectEnabled(True)
 
-        self.status_label = BodyLabel("Starting backend...")
-        self.tabs = QTabWidget()
-        self.create_tab = self._build_create_tab()
-        self.detail_tab = self._build_detail_tab()
-        self.settings_tab = self._build_settings_tab()
-        self.tabs.addTab(self.create_tab, "Tasks")
-        self.tabs.addTab(self.detail_tab, "Task detail")
-        self.tabs.addTab(self.settings_tab, "Settings")
-
-        root = QWidget(self)
-        layout = QVBoxLayout(root)
-        header = QHBoxLayout()
-        title = SubtitleLabel("YouDub Desktop")
-        header.addWidget(title)
-        header.addStretch(1)
-        header.addWidget(self.status_label)
-        layout.addLayout(header)
-        layout.addWidget(self.tabs)
-        self.setCentralWidget(root)
+        self.tasks_page = self._build_tasks_page()
+        self.detail_page = self._build_detail_page()
+        self.settings_page = self._build_settings_page()
+        self.addSubInterface(self.tasks_page, FIF.HOME, "Tasks")
+        self.addSubInterface(self.detail_page, FIF.VIDEO, "Detail")
+        self.addSubInterface(self.settings_page, FIF.SETTING, "Settings")
 
         self.timer = QTimer(self)
         self.timer.setInterval(2000)
         self.timer.timeout.connect(self.refresh_tasks)
+        self._job(self._init_client, self._ready)
 
-        self._run_backend_start()
+    def _init_client(self) -> DirectClient:
+        return DirectClient()
 
-    def closeEvent(self, event) -> None:  # noqa: N802
-        self.timer.stop()
-        self.backend.stop()
-        super().closeEvent(event)
+    def _ready(self, client: DirectClient) -> None:
+        self.client = client
+        self._toast("YouDub backend is running inside the desktop app.")
+        self.refresh_tasks()
+        self.load_settings()
+        self.timer.start()
 
-    def _build_create_tab(self) -> QWidget:
-        page = QWidget()
+    def _build_tasks_page(self) -> QWidget:
+        page = _page("tasksPage")
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 26, 28, 26)
+        layout.setSpacing(18)
 
-        form = QGridLayout()
+        title = SubtitleLabel("Create localization task")
+        layout.addWidget(title)
+
+        card = CardWidget()
+        form = QGridLayout(card)
+        form.setContentsMargins(22, 18, 22, 18)
+        form.setHorizontalSpacing(14)
+        form.setVerticalSpacing(12)
+
         self.youtube_input = LineEdit()
         self.youtube_input.setPlaceholderText("https://www.youtube.com/watch?v=...")
         self.bilibili_input = LineEdit()
         self.bilibili_input.setPlaceholderText("https://www.bilibili.com/video/BV...")
         self.direction_combo = ComboBox()
         self.direction_combo.addItems(["en-zh", "zh-en"])
-        self.file_label = BodyLabel("No local file selected")
+        self.file_label = BodyLabel("No file selected")
         choose_file = PushButton("Choose video")
+        choose_file.setIcon(FIF.FOLDER)
         choose_file.clicked.connect(self.choose_upload_file)
         create_button = PrimaryPushButton("Create task")
+        create_button.setIcon(FIF.PLAY)
         create_button.clicked.connect(self.create_task)
 
-        form.addWidget(QLabel("YouTube URL"), 0, 0)
+        form.addWidget(StrongBodyLabel("YouTube URL"), 0, 0)
         form.addWidget(self.youtube_input, 0, 1, 1, 3)
-        form.addWidget(QLabel("Bilibili URL"), 1, 0)
+        form.addWidget(StrongBodyLabel("Bilibili URL"), 1, 0)
         form.addWidget(self.bilibili_input, 1, 1, 1, 3)
-        form.addWidget(QLabel("Local video"), 2, 0)
+        form.addWidget(StrongBodyLabel("Local video"), 2, 0)
         form.addWidget(self.file_label, 2, 1)
         form.addWidget(choose_file, 2, 2)
         form.addWidget(self.direction_combo, 2, 3)
         form.addWidget(create_button, 3, 3)
-        layout.addLayout(form)
+        layout.addWidget(card)
 
-        self.tasks_table = QTableWidget(0, 5)
+        layout.addWidget(SubtitleLabel("Task history"))
+        self.tasks_table = TableWidget()
+        self.tasks_table.setColumnCount(5)
         self.tasks_table.setHorizontalHeaderLabels(["Title", "Status", "Stage", "Created", "ID"])
-        self.tasks_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.tasks_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        self.tasks_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.tasks_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.tasks_table.itemSelectionChanged.connect(self._select_task_from_table)
-        layout.addWidget(self.tasks_table)
-
+        self.tasks_table.verticalHeader().hide()
+        self.tasks_table.setSelectionBehavior(TableWidget.SelectRows)
+        self.tasks_table.setEditTriggers(TableWidget.NoEditTriggers)
+        self.tasks_table.itemSelectionChanged.connect(self._select_task)
+        layout.addWidget(self.tasks_table, 1)
         return page
 
-    def _build_detail_tab(self) -> QWidget:
-        page = QWidget()
+    def _build_detail_page(self) -> QWidget:
+        page = _page("detailPage")
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 26, 28, 26)
+        layout.setSpacing(14)
 
+        overview = CardWidget()
+        overview_layout = QVBoxLayout(overview)
+        overview_layout.setContentsMargins(22, 18, 22, 18)
         self.detail_title = SubtitleLabel("No task selected")
-        self.detail_status = BodyLabel("")
+        self.detail_status = BodyLabel("Choose a task from the task history.")
         self.progress = ProgressBar()
-        layout.addWidget(self.detail_title)
-        layout.addWidget(self.detail_status)
-        layout.addWidget(self.progress)
-
-        buttons = QHBoxLayout()
+        overview_layout.addWidget(self.detail_title)
+        overview_layout.addWidget(self.detail_status)
+        overview_layout.addWidget(self.progress)
+        actions = QHBoxLayout()
         self.resume_button = PushButton("Resume")
+        self.resume_button.setIcon(FIF.PLAY)
         self.resume_button.clicked.connect(lambda: self._task_action("resume"))
         self.rerun_button = PushButton("Rerun")
+        self.rerun_button.setIcon(FIF.SYNC)
         self.rerun_button.clicked.connect(lambda: self._task_action("rerun"))
         self.delete_button = PushButton("Delete")
+        self.delete_button.setIcon(FIF.DELETE)
         self.delete_button.clicked.connect(lambda: self._task_action("delete"))
         self.open_video_button = PrimaryPushButton("Open final video")
+        self.open_video_button.setIcon(FIF.VIDEO)
         self.open_video_button.clicked.connect(self.open_final_video)
         for button in (self.resume_button, self.rerun_button, self.delete_button, self.open_video_button):
-            buttons.addWidget(button)
-        buttons.addStretch(1)
-        layout.addLayout(buttons)
+            actions.addWidget(button)
+        actions.addStretch(1)
+        overview_layout.addLayout(actions)
+        layout.addWidget(overview)
 
-        self.stages_table = QTableWidget(0, 4)
+        self.stages_table = TableWidget()
+        self.stages_table.setColumnCount(4)
         self.stages_table.setHorizontalHeaderLabels(["Stage", "Status", "Duration", "Message"])
-        self.stages_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
-        self.stages_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        layout.addWidget(self.stages_table)
+        self.stages_table.verticalHeader().hide()
+        self.stages_table.setEditTriggers(TableWidget.NoEditTriggers)
+        layout.addWidget(self.stages_table, 1)
 
         self.log_box = PlainTextEdit()
         self.log_box.setReadOnly(True)
-        layout.addWidget(self.log_box)
+        self.log_box.setPlaceholderText("Logs will appear when a task starts.")
+        layout.addWidget(self.log_box, 1)
         return page
 
-    def _build_settings_tab(self) -> QWidget:
-        page = QWidget()
-        layout = QGridLayout(page)
+    def _build_settings_page(self) -> QWidget:
+        page = _page("settingsPage")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 26, 28, 26)
+        layout.setSpacing(18)
+        layout.addWidget(SubtitleLabel("Runtime settings"))
+
+        card = CardWidget()
+        grid = QGridLayout(card)
+        grid.setContentsMargins(22, 18, 22, 18)
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(12)
         self.cookie_text = TextEdit()
         self.cookie_text.setPlaceholderText("Paste Netscape YouTube cookie content")
         self.proxy_input = LineEdit()
@@ -206,53 +218,43 @@ class AppWindow(QMainWindow):
         self.concurrency_input = LineEdit()
         self.models_combo = ComboBox()
         load_button = PushButton("Get models")
+        load_button.setIcon(FIF.CLOUD_DOWNLOAD)
         load_button.clicked.connect(self.load_models)
         save_button = PrimaryPushButton("Save settings")
+        save_button.setIcon(FIF.SAVE)
         save_button.clicked.connect(self.save_settings)
 
-        layout.addWidget(QLabel("YouTube cookie"), 0, 0)
-        layout.addWidget(self.cookie_text, 0, 1, 1, 3)
-        layout.addWidget(QLabel("yt-dlp proxy port"), 1, 0)
-        layout.addWidget(self.proxy_input, 1, 1)
-        layout.addWidget(QLabel("OpenAI base URL"), 2, 0)
-        layout.addWidget(self.base_url_input, 2, 1, 1, 3)
-        layout.addWidget(QLabel("OpenAI API key"), 3, 0)
-        layout.addWidget(self.api_key_input, 3, 1, 1, 3)
-        layout.addWidget(QLabel("Model"), 4, 0)
-        layout.addWidget(self.model_input, 4, 1)
-        layout.addWidget(self.models_combo, 4, 2)
-        layout.addWidget(load_button, 4, 3)
-        layout.addWidget(QLabel("Translate concurrency"), 5, 0)
-        layout.addWidget(self.concurrency_input, 5, 1)
-        layout.addWidget(save_button, 6, 3)
+        grid.addWidget(StrongBodyLabel("YouTube cookie"), 0, 0)
+        grid.addWidget(self.cookie_text, 0, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel("yt-dlp proxy port"), 1, 0)
+        grid.addWidget(self.proxy_input, 1, 1)
+        grid.addWidget(StrongBodyLabel("OpenAI base URL"), 2, 0)
+        grid.addWidget(self.base_url_input, 2, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel("OpenAI API key"), 3, 0)
+        grid.addWidget(self.api_key_input, 3, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel("Model"), 4, 0)
+        grid.addWidget(self.model_input, 4, 1)
+        grid.addWidget(self.models_combo, 4, 2)
+        grid.addWidget(load_button, 4, 3)
+        grid.addWidget(StrongBodyLabel("Translate concurrency"), 5, 0)
+        grid.addWidget(self.concurrency_input, 5, 1)
+        grid.addWidget(save_button, 6, 3)
+        layout.addWidget(card)
+        layout.addStretch(1)
         return page
 
-    def _run_backend_start(self) -> None:
-        self._job(
-            self.backend.start,
-            lambda _: self._backend_ready(),
-            lambda error: self._show_error(f"Backend failed to start: {error}"),
-        )
-
-    def _backend_ready(self) -> None:
-        self.api = ApiClient(self.backend.base_url)
-        self.status_label.setText(f"Backend: {self.backend.base_url}")
-        self.refresh_tasks()
-        self.load_settings()
-        self.timer.start()
-
     def _job(self, fn: Callable[[], Any], done: Callable[[Any], None], error: Callable[[str], None] | None = None) -> None:
-        self.pool.start(ApiJob(fn, done, error or self._show_error))
+        self.pool.start(Job(fn, done, error or self._error))
 
     def refresh_tasks(self) -> None:
-        if not self.api or self._refresh_busy:
+        if not self.client or self._refresh_busy:
             return
         self._refresh_busy = True
-        self._job(lambda: self.api.list_tasks(), self._tasks_loaded, self._refresh_error)
+        self._job(lambda: self.client.list_tasks(), self._tasks_loaded, self._refresh_error)
 
-    def _refresh_error(self, error: str) -> None:
+    def _refresh_error(self, message: str) -> None:
         self._refresh_busy = False
-        self.status_label.setText(error)
+        self._error(message)
 
     def _tasks_loaded(self, tasks: list[dict[str, Any]]) -> None:
         self._refresh_busy = False
@@ -267,26 +269,25 @@ class AppWindow(QMainWindow):
                 task.get("id") or "",
             ]
             for col, value in enumerate(values):
-                self.tasks_table.setItem(row, col, QTableWidgetItem(str(value)))
+                self.tasks_table.setItem(row, col, _item(value))
+        self.tasks_table.resizeColumnsToContents()
         if self.current_task_id:
             self.load_task_detail(self.current_task_id)
 
-    def _select_task_from_table(self) -> None:
+    def _select_task(self) -> None:
         selected = self.tasks_table.selectedItems()
         if not selected:
             return
         row = selected[0].row()
         if row >= len(self.tasks):
             return
-        task_id = self.tasks[row]["id"]
-        self.current_task_id = task_id
-        self.tabs.setCurrentWidget(self.detail_tab)
-        self.load_task_detail(task_id)
+        self.current_task_id = self.tasks[row]["id"]
+        self.switchTo(self.detail_page)
+        self.load_task_detail(self.current_task_id)
 
     def load_task_detail(self, task_id: str) -> None:
-        if not self.api:
-            return
-        self._job(lambda: (self.api.get_task(task_id), self.api.get_log(task_id)), self._detail_loaded)
+        if self.client:
+            self._job(lambda: (self.client.get_task(task_id), self.client.get_log(task_id)), self._detail_loaded)
 
     def _detail_loaded(self, payload: tuple[dict[str, Any], str]) -> None:
         task, log = payload
@@ -294,24 +295,23 @@ class AppWindow(QMainWindow):
         stages = task.get("stages") or []
         completed = len([stage for stage in stages if stage.get("status") == "succeeded"])
         self.detail_title.setText(task.get("title") or task.get("url") or task.get("id"))
-        self.detail_status.setText(
-            f"Status: {_fmt(task.get('status'))} | Stage: {_fmt(task.get('current_stage'))} | ID: {task.get('id')}"
-        )
+        self.detail_status.setText(f"{task.get('status')} / {task.get('current_stage') or 'done'} / {task.get('id')}")
         self.progress.setValue(round(completed / len(stages) * 100) if stages else 0)
         self.stages_table.setRowCount(len(stages))
         for row, stage in enumerate(stages):
             values = [
                 stage.get("label") or stage.get("name") or "",
                 stage.get("status") or "",
-                self._duration(stage.get("started_at"), stage.get("completed_at")),
+                _duration(stage.get("started_at"), stage.get("completed_at")),
                 stage.get("error_message") or stage.get("last_message") or "",
             ]
             for col, value in enumerate(values):
-                self.stages_table.setItem(row, col, QTableWidgetItem(str(value)))
+                self.stages_table.setItem(row, col, _item(value))
+        self.stages_table.resizeColumnsToContents()
         self.log_box.setPlainText(log)
         self.resume_button.setEnabled(task.get("status") == "failed")
-        self.rerun_button.setEnabled(not _is_active(task.get("status")))
-        self.delete_button.setEnabled(not _is_active(task.get("status")))
+        self.rerun_button.setEnabled(not _active(task.get("status")))
+        self.delete_button.setEnabled(not _active(task.get("status")))
         self.open_video_button.setEnabled(bool(task.get("final_video_path")))
 
     def choose_upload_file(self) -> None:
@@ -326,42 +326,40 @@ class AppWindow(QMainWindow):
             self.file_label.setText(self.upload_file.name)
 
     def create_task(self) -> None:
-        if not self.api:
+        if not self.client:
             return
-        youtube = self.youtube_input.text().strip()
-        bilibili = self.bilibili_input.text().strip()
         if self.upload_file:
             direction = self.direction_combo.currentText()
-            self._job(lambda: self.api.upload_task(self.upload_file, direction), self._created_task)
+            self._job(lambda: self.client.upload_task(self.upload_file, direction), self._created_task)
             return
-        url = youtube or bilibili
+        url = self.youtube_input.text().strip() or self.bilibili_input.text().strip()
         if not url:
-            self._show_error("Enter a URL or choose a local video.")
+            self._error("Enter a URL or choose a local video.")
             return
-        self._job(lambda: self.api.create_task(url), self._created_task)
+        self._job(lambda: self.client.create_task(url), self._created_task)
 
     def _created_task(self, task: dict[str, Any]) -> None:
         self.youtube_input.clear()
         self.bilibili_input.clear()
         self.upload_file = None
-        self.file_label.setText("No local file selected")
+        self.file_label.setText("No file selected")
         self.current_task_id = task["id"]
         self.refresh_tasks()
         self.load_task_detail(task["id"])
-        self.tabs.setCurrentWidget(self.detail_tab)
+        self.switchTo(self.detail_page)
 
     def _task_action(self, action: str) -> None:
-        if not self.api or not self.current_task_id:
+        if not self.client or not self.current_task_id:
             return
         task_id = self.current_task_id
         if action == "delete":
             if QMessageBox.question(self, "Delete task", "Delete this task and its files?") != QMessageBox.Yes:
                 return
-            self._job(lambda: self.api.delete_task(task_id), lambda _: self._after_delete())
+            self._job(lambda: self.client.delete_task(task_id), lambda _: self._after_delete())
         elif action == "rerun":
-            self._job(lambda: self.api.rerun_task(task_id), self._created_task)
+            self._job(lambda: self.client.rerun_task(task_id), self._created_task)
         elif action == "resume":
-            self._job(lambda: self.api.resume_task(task_id), self._created_task)
+            self._job(lambda: self.client.resume_task(task_id), self._created_task)
 
     def _after_delete(self) -> None:
         self.current_task_id = None
@@ -369,24 +367,24 @@ class AppWindow(QMainWindow):
         self.detail_title.setText("No task selected")
         self.log_box.clear()
         self.refresh_tasks()
-        self.tabs.setCurrentWidget(self.create_tab)
+        self.switchTo(self.tasks_page)
 
     def open_final_video(self) -> None:
-        if not self.current_task_id or not self.api:
-            return
-        task = self.current_task or next((item for item in self.tasks if item["id"] == self.current_task_id), None)
-        path = task.get("final_video_path") if task else None
-        if path and Path(path).exists():
+        task = self.current_task
+        path = Path(task["final_video_path"]) if task and task.get("final_video_path") else None
+        if path and path.exists():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
         else:
-            QDesktopServices.openUrl(QUrl(self.api.final_video_url(self.current_task_id)))
+            self._error("Final video is not available yet.")
 
     def load_settings(self) -> None:
-        if not self.api:
+        if not self.client:
             return
+
         def load() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-            assert self.api
-            return self.api.get_cookie_info(), self.api.get_openai_settings(), self.api.get_ytdlp_settings()
+            assert self.client
+            return self.client.get_cookie_info(), self.client.get_openai_settings(), self.client.get_ytdlp_settings()
+
         self._job(load, self._settings_loaded)
 
     def _settings_loaded(self, payload: tuple[dict[str, Any], dict[str, Any], dict[str, Any]]) -> None:
@@ -399,11 +397,11 @@ class AppWindow(QMainWindow):
         self.proxy_input.setText(ytdlp.get("proxy_port", ""))
 
     def load_models(self) -> None:
-        if not self.api:
-            return
-        base_url = self.base_url_input.text().strip()
-        api_key = self.api_key_input.text().strip()
-        self._job(lambda: self.api.list_models(base_url, api_key), self._models_loaded)
+        if self.client:
+            self._job(
+                lambda: self.client.list_models(self.base_url_input.text().strip(), self.api_key_input.text().strip()),
+                self._models_loaded,
+            )
 
     def _models_loaded(self, models: list[str]) -> None:
         self.models_combo.clear()
@@ -412,7 +410,7 @@ class AppWindow(QMainWindow):
             self.model_input.setText(models[0])
 
     def save_settings(self) -> None:
-        if not self.api:
+        if not self.client:
             return
         settings = {
             "base_url": self.base_url_input.text().strip(),
@@ -424,30 +422,43 @@ class AppWindow(QMainWindow):
         proxy_port = self.proxy_input.text().strip()
 
         def save() -> None:
-            assert self.api
+            assert self.client
             if cookie:
-                self.api.save_cookie(cookie)
-            self.api.save_openai_settings(settings)
-            self.api.save_ytdlp_settings(proxy_port)
+                self.client.save_cookie(cookie)
+            self.client.save_openai_settings(settings)
+            self.client.save_ytdlp_settings(proxy_port)
 
-        self._job(save, lambda _: self._info("Settings saved."))
+        self._job(save, lambda _: self._toast("Settings saved."))
 
-    def _show_error(self, message: str) -> None:
-        QMessageBox.critical(self, "YouDub Desktop", message)
+    def _toast(self, message: str) -> None:
+        InfoBar.success("YouDubPlusPlus", message, parent=self, position=InfoBarPosition.TOP_RIGHT, duration=2200)
 
-    def _info(self, message: str) -> None:
-        QMessageBox.information(self, "YouDub Desktop", message)
+    def _error(self, message: str) -> None:
+        InfoBar.error("YouDubPlusPlus", message, parent=self, position=InfoBarPosition.TOP_RIGHT, duration=4500)
 
-    @staticmethod
-    def _duration(start: str | None, end: str | None) -> str:
-        if not start:
-            return "-"
-        try:
-            start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
-            end_dt = datetime.fromisoformat(end.replace("Z", "+00:00")) if end else datetime.now(start_dt.tzinfo)
-        except ValueError:
-            return _fmt(end)
-        seconds = max(0, round((end_dt - start_dt).total_seconds()))
-        if seconds < 60:
-            return f"{seconds}s"
-        return f"{seconds // 60}m{seconds % 60:02d}s"
+
+def _page(name: str) -> QWidget:
+    page = QFrame()
+    page.setObjectName(name)
+    page.setAttribute(Qt.WA_StyledBackground, True)
+    return page
+
+
+def _item(value: Any):
+    from PyQt5.QtWidgets import QTableWidgetItem
+
+    item = QTableWidgetItem(str(value or ""))
+    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+    return item
+
+
+def _duration(start: str | None, end: str | None) -> str:
+    if not start:
+        return "-"
+    try:
+        start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(end.replace("Z", "+00:00")) if end else datetime.now(start_dt.tzinfo)
+    except ValueError:
+        return end or "-"
+    seconds = max(0, round((end_dt - start_dt).total_seconds()))
+    return f"{seconds}s" if seconds < 60 else f"{seconds // 60}m{seconds % 60:02d}s"
