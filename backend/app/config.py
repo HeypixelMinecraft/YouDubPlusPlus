@@ -1,18 +1,35 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+
+def _resource_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)).resolve()
+    return Path(__file__).resolve().parents[2]
+
+
+def _runtime_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return REPO_ROOT
+
+
+REPO_ROOT = _resource_root()
+RUNTIME_ROOT = _runtime_root()
+
+load_dotenv(RUNTIME_ROOT / ".env")
 load_dotenv()
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = REPO_ROOT / "data"
+DATA_DIR = Path(os.getenv("YOUDUB_DATA_DIR", str(RUNTIME_ROOT / "data"))).expanduser()
 COOKIE_DIR = DATA_DIR / "cookies"
 DB_PATH = DATA_DIR / "youdub.sqlite"
 YOUTUBE_COOKIE_PATH = COOKIE_DIR / "youtube.txt"
-WORKFOLDER = Path(os.getenv("WORKFOLDER", str(REPO_ROOT / "workfolder"))).expanduser()
+WORKFOLDER = Path(os.getenv("WORKFOLDER", str(RUNTIME_ROOT / "workfolder"))).expanduser()
 LOG_DIR = DATA_DIR / "logs"
 MODEL_CACHE_DIR = Path(os.getenv("MODEL_CACHE_DIR", str(DATA_DIR / "modelscope"))).expanduser()
 

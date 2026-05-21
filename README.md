@@ -87,6 +87,7 @@ cp env.txt.example .env
 | 变量 | 说明 |
 | --- | --- |
 | `WORKFOLDER` | 每个任务的媒体、中间产物和最终视频目录 |
+| `YOUDUB_DATA_DIR` | 数据库、日志、cookies 和模型缓存的运行数据目录 |
 | `MODEL_CACHE_DIR` | 模型缓存目录 |
 | `DEVICE` | `cuda`、`cuda:0` 或 `cpu` |
 | `OPENAI_BASE_URL` | OpenAI 兼容 API 地址 |
@@ -96,6 +97,8 @@ cp env.txt.example .env
 | `TTS_BACKEND` | `auto`、`index_tts` 或 `voxcpm` |
 | `INDEXTTS_MODEL_DIR` / `INDEXTTS_CFG_PATH` | IndexTTS checkpoints 目录和配置路径 |
 | `VOXCPM_MODEL` / `VOXCPM_MODEL_DIR` | VoxCPM2 回退模型配置 |
+
+源码运行时，`workfolder` 和 `data` 默认在仓库根目录；桌面打包后，它们默认在 `YouDubPlusPlus.exe` 同级目录，不会写进 PyInstaller 的 `_internal` 资源目录。
 
 ## 运行桌面端
 
