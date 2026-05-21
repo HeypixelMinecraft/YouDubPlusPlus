@@ -218,6 +218,14 @@ class AppWindow(FluentWindow):
         grid.setVerticalSpacing(12)
         self.cookie_text = TextEdit()
         self.cookie_text.setPlaceholderText(self._t("Paste Netscape YouTube cookie content"))
+        cookie_help = BodyLabel(
+            self._t(
+                "Use get-cookies.txt LOCALLY to export YouTube cookies in Netscape format, "
+                "then paste the content here: "
+                "https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc"
+            )
+        )
+        cookie_help.setWordWrap(True)
         self.language_combo = ComboBox()
         for code, name in LANGUAGE_NAMES.items():
             self.language_combo.addItem(name, userData=code)
@@ -243,19 +251,20 @@ class AppWindow(FluentWindow):
         grid.addWidget(BodyLabel(self._t("Language changes take effect after restart.")), 0, 2, 1, 2)
         grid.addWidget(StrongBodyLabel(self._t("YouTube cookie")), 1, 0)
         grid.addWidget(self.cookie_text, 1, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel(self._t("yt-dlp proxy port")), 2, 0)
-        grid.addWidget(self.proxy_input, 2, 1)
-        grid.addWidget(StrongBodyLabel(self._t("OpenAI base URL")), 3, 0)
-        grid.addWidget(self.base_url_input, 3, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel(self._t("OpenAI API key")), 4, 0)
-        grid.addWidget(self.api_key_input, 4, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel(self._t("Model")), 5, 0)
-        grid.addWidget(self.model_input, 5, 1)
-        grid.addWidget(self.models_combo, 5, 2)
-        grid.addWidget(load_button, 5, 3)
-        grid.addWidget(StrongBodyLabel(self._t("Translate concurrency")), 6, 0)
-        grid.addWidget(self.concurrency_input, 6, 1)
-        grid.addWidget(save_button, 7, 3)
+        grid.addWidget(cookie_help, 2, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel(self._t("yt-dlp proxy port")), 3, 0)
+        grid.addWidget(self.proxy_input, 3, 1)
+        grid.addWidget(StrongBodyLabel(self._t("OpenAI base URL")), 4, 0)
+        grid.addWidget(self.base_url_input, 4, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel(self._t("OpenAI API key")), 5, 0)
+        grid.addWidget(self.api_key_input, 5, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Model")), 6, 0)
+        grid.addWidget(self.model_input, 6, 1)
+        grid.addWidget(self.models_combo, 6, 2)
+        grid.addWidget(load_button, 6, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Translate concurrency")), 7, 0)
+        grid.addWidget(self.concurrency_input, 7, 1)
+        grid.addWidget(save_button, 8, 3)
         layout.addWidget(card)
         layout.addStretch(1)
         return page

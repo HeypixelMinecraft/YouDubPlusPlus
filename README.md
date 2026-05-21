@@ -20,7 +20,7 @@ English README: [README.en.md](README.en.md)
 - Python 3.12
 - Git 和 Git submodule
 - FFmpeg / ffprobe，并确保在 `PATH` 中可用
-- 处理 YouTube 时建议准备可用代理和 Netscape 格式 Cookie
+- 处理 YouTube 时建议准备可用代理和 Netscape 格式 Cookie。推荐使用 Chrome 插件 [get-cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 导出 Netscape 格式 cookie 后粘贴到桌面端设置页。
 - OpenAI 兼容 API 的 `base URL`、API key 和模型名
 - 完整处理视频建议使用 CUDA GPU；CPU 可以跑部分流程，但 ASR、分离和 TTS 会很慢
 
