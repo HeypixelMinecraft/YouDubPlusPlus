@@ -30,6 +30,7 @@ from qfluentwidgets import (
 )
 
 from ..direct_client import DirectClient
+from .i18n import LANGUAGE_NAMES, configured_language, save_language, translate
 
 
 class WorkerSignals(QObject):
@@ -68,6 +69,7 @@ class AppWindow(FluentWindow):
         self.current_task: dict[str, Any] | None = None
         self.upload_file: Path | None = None
         self._refresh_busy = False
+        self.language = configured_language()
 
         self.setWindowTitle("YouDubPlusPlus")
         self.resize(1220, 820)
@@ -78,9 +80,9 @@ class AppWindow(FluentWindow):
         self.tasks_page = self._build_tasks_page()
         self.detail_page = self._build_detail_page()
         self.settings_page = self._build_settings_page()
-        self.addSubInterface(self.tasks_page, FIF.HOME, "Tasks")
-        self.addSubInterface(self.detail_page, FIF.VIDEO, "Detail")
-        self.addSubInterface(self.settings_page, FIF.SETTING, "Settings")
+        self.addSubInterface(self.tasks_page, FIF.HOME, self._t("Tasks"))
+        self.addSubInterface(self.detail_page, FIF.VIDEO, self._t("Detail"))
+        self.addSubInterface(self.settings_page, FIF.SETTING, self._t("Settings"))
 
         self.timer = QTimer(self)
         self.timer.setInterval(2000)
@@ -90,9 +92,12 @@ class AppWindow(FluentWindow):
     def _init_client(self) -> DirectClient:
         return DirectClient()
 
+    def _t(self, text: str) -> str:
+        return translate(text, self.language)
+
     def _ready(self, client: DirectClient) -> None:
         self.client = client
-        self._toast("YouDub backend is running inside the desktop app.")
+        self._toast(self._t("YouDub backend is running inside the desktop app."))
         self.refresh_tasks()
         self.load_settings()
         self.timer.start()
@@ -103,7 +108,7 @@ class AppWindow(FluentWindow):
         layout.setContentsMargins(28, 26, 28, 26)
         layout.setSpacing(18)
 
-        title = SubtitleLabel("Create localization task")
+        title = SubtitleLabel(self._t("Create localization task"))
         layout.addWidget(title)
 
         card = CardWidget()
@@ -118,29 +123,31 @@ class AppWindow(FluentWindow):
         self.bilibili_input.setPlaceholderText("https://www.bilibili.com/video/BV...")
         self.direction_combo = ComboBox()
         self.direction_combo.addItems(["en-zh", "zh-en"])
-        self.file_label = BodyLabel("No file selected")
-        choose_file = PushButton("Choose video")
+        self.file_label = BodyLabel(self._t("No file selected"))
+        choose_file = PushButton(self._t("Choose video"))
         choose_file.setIcon(FIF.FOLDER)
         choose_file.clicked.connect(self.choose_upload_file)
-        create_button = PrimaryPushButton("Create task")
+        create_button = PrimaryPushButton(self._t("Create task"))
         create_button.setIcon(FIF.PLAY)
         create_button.clicked.connect(self.create_task)
 
-        form.addWidget(StrongBodyLabel("YouTube URL"), 0, 0)
+        form.addWidget(StrongBodyLabel(self._t("YouTube URL")), 0, 0)
         form.addWidget(self.youtube_input, 0, 1, 1, 3)
-        form.addWidget(StrongBodyLabel("Bilibili URL"), 1, 0)
+        form.addWidget(StrongBodyLabel(self._t("Bilibili URL")), 1, 0)
         form.addWidget(self.bilibili_input, 1, 1, 1, 3)
-        form.addWidget(StrongBodyLabel("Local video"), 2, 0)
+        form.addWidget(StrongBodyLabel(self._t("Local video")), 2, 0)
         form.addWidget(self.file_label, 2, 1)
         form.addWidget(choose_file, 2, 2)
         form.addWidget(self.direction_combo, 2, 3)
         form.addWidget(create_button, 3, 3)
         layout.addWidget(card)
 
-        layout.addWidget(SubtitleLabel("Task history"))
+        layout.addWidget(SubtitleLabel(self._t("Task history")))
         self.tasks_table = TableWidget()
         self.tasks_table.setColumnCount(5)
-        self.tasks_table.setHorizontalHeaderLabels(["Title", "Status", "Stage", "Created", "ID"])
+        self.tasks_table.setHorizontalHeaderLabels(
+            [self._t("Title"), self._t("Status"), self._t("Stage"), self._t("Created"), self._t("ID")]
+        )
         self.tasks_table.verticalHeader().hide()
         self.tasks_table.setSelectionBehavior(TableWidget.SelectRows)
         self.tasks_table.setEditTriggers(TableWidget.NoEditTriggers)
@@ -157,23 +164,23 @@ class AppWindow(FluentWindow):
         overview = CardWidget()
         overview_layout = QVBoxLayout(overview)
         overview_layout.setContentsMargins(22, 18, 22, 18)
-        self.detail_title = SubtitleLabel("No task selected")
-        self.detail_status = BodyLabel("Choose a task from the task history.")
+        self.detail_title = SubtitleLabel(self._t("No task selected"))
+        self.detail_status = BodyLabel(self._t("Choose a task from the task history."))
         self.progress = ProgressBar()
         overview_layout.addWidget(self.detail_title)
         overview_layout.addWidget(self.detail_status)
         overview_layout.addWidget(self.progress)
         actions = QHBoxLayout()
-        self.resume_button = PushButton("Resume")
+        self.resume_button = PushButton(self._t("Resume"))
         self.resume_button.setIcon(FIF.PLAY)
         self.resume_button.clicked.connect(lambda: self._task_action("resume"))
-        self.rerun_button = PushButton("Rerun")
+        self.rerun_button = PushButton(self._t("Rerun"))
         self.rerun_button.setIcon(FIF.SYNC)
         self.rerun_button.clicked.connect(lambda: self._task_action("rerun"))
-        self.delete_button = PushButton("Delete")
+        self.delete_button = PushButton(self._t("Delete"))
         self.delete_button.setIcon(FIF.DELETE)
         self.delete_button.clicked.connect(lambda: self._task_action("delete"))
-        self.open_video_button = PrimaryPushButton("Open final video")
+        self.open_video_button = PrimaryPushButton(self._t("Open final video"))
         self.open_video_button.setIcon(FIF.VIDEO)
         self.open_video_button.clicked.connect(self.open_final_video)
         for button in (self.resume_button, self.rerun_button, self.delete_button, self.open_video_button):
@@ -184,14 +191,16 @@ class AppWindow(FluentWindow):
 
         self.stages_table = TableWidget()
         self.stages_table.setColumnCount(4)
-        self.stages_table.setHorizontalHeaderLabels(["Stage", "Status", "Duration", "Message"])
+        self.stages_table.setHorizontalHeaderLabels(
+            [self._t("Stage"), self._t("Status"), self._t("Duration"), self._t("Message")]
+        )
         self.stages_table.verticalHeader().hide()
         self.stages_table.setEditTriggers(TableWidget.NoEditTriggers)
         layout.addWidget(self.stages_table, 1)
 
         self.log_box = PlainTextEdit()
         self.log_box.setReadOnly(True)
-        self.log_box.setPlaceholderText("Logs will appear when a task starts.")
+        self.log_box.setPlaceholderText(self._t("Logs will appear when a task starts."))
         layout.addWidget(self.log_box, 1)
         return page
 
@@ -200,7 +209,7 @@ class AppWindow(FluentWindow):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(28, 26, 28, 26)
         layout.setSpacing(18)
-        layout.addWidget(SubtitleLabel("Runtime settings"))
+        layout.addWidget(SubtitleLabel(self._t("Runtime settings")))
 
         card = CardWidget()
         grid = QGridLayout(card)
@@ -208,7 +217,12 @@ class AppWindow(FluentWindow):
         grid.setHorizontalSpacing(14)
         grid.setVerticalSpacing(12)
         self.cookie_text = TextEdit()
-        self.cookie_text.setPlaceholderText("Paste Netscape YouTube cookie content")
+        self.cookie_text.setPlaceholderText(self._t("Paste Netscape YouTube cookie content"))
+        self.language_combo = ComboBox()
+        for code, name in LANGUAGE_NAMES.items():
+            self.language_combo.addItem(name, userData=code)
+        index = self.language_combo.findData(self.language)
+        self.language_combo.setCurrentIndex(max(index, 0))
         self.proxy_input = LineEdit()
         self.proxy_input.setPlaceholderText("7890")
         self.base_url_input = LineEdit()
@@ -217,28 +231,31 @@ class AppWindow(FluentWindow):
         self.model_input = LineEdit()
         self.concurrency_input = LineEdit()
         self.models_combo = ComboBox()
-        load_button = PushButton("Get models")
+        load_button = PushButton(self._t("Get models"))
         load_button.setIcon(FIF.CLOUD_DOWNLOAD)
         load_button.clicked.connect(self.load_models)
-        save_button = PrimaryPushButton("Save settings")
+        save_button = PrimaryPushButton(self._t("Save settings"))
         save_button.setIcon(FIF.SAVE)
         save_button.clicked.connect(self.save_settings)
 
-        grid.addWidget(StrongBodyLabel("YouTube cookie"), 0, 0)
-        grid.addWidget(self.cookie_text, 0, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel("yt-dlp proxy port"), 1, 0)
-        grid.addWidget(self.proxy_input, 1, 1)
-        grid.addWidget(StrongBodyLabel("OpenAI base URL"), 2, 0)
-        grid.addWidget(self.base_url_input, 2, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel("OpenAI API key"), 3, 0)
-        grid.addWidget(self.api_key_input, 3, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel("Model"), 4, 0)
-        grid.addWidget(self.model_input, 4, 1)
-        grid.addWidget(self.models_combo, 4, 2)
-        grid.addWidget(load_button, 4, 3)
-        grid.addWidget(StrongBodyLabel("Translate concurrency"), 5, 0)
-        grid.addWidget(self.concurrency_input, 5, 1)
-        grid.addWidget(save_button, 6, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Interface language")), 0, 0)
+        grid.addWidget(self.language_combo, 0, 1)
+        grid.addWidget(BodyLabel(self._t("Language changes take effect after restart.")), 0, 2, 1, 2)
+        grid.addWidget(StrongBodyLabel(self._t("YouTube cookie")), 1, 0)
+        grid.addWidget(self.cookie_text, 1, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel(self._t("yt-dlp proxy port")), 2, 0)
+        grid.addWidget(self.proxy_input, 2, 1)
+        grid.addWidget(StrongBodyLabel(self._t("OpenAI base URL")), 3, 0)
+        grid.addWidget(self.base_url_input, 3, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel(self._t("OpenAI API key")), 4, 0)
+        grid.addWidget(self.api_key_input, 4, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Model")), 5, 0)
+        grid.addWidget(self.model_input, 5, 1)
+        grid.addWidget(self.models_combo, 5, 2)
+        grid.addWidget(load_button, 5, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Translate concurrency")), 6, 0)
+        grid.addWidget(self.concurrency_input, 6, 1)
+        grid.addWidget(save_button, 7, 3)
         layout.addWidget(card)
         layout.addStretch(1)
         return page
@@ -263,8 +280,8 @@ class AppWindow(FluentWindow):
         for row, task in enumerate(tasks):
             values = [
                 task.get("title") or task.get("url") or "",
-                task.get("status") or "",
-                task.get("current_stage") or "",
+                self._t(task.get("status") or ""),
+                self._t(task.get("current_stage") or ""),
                 task.get("created_at") or "",
                 task.get("id") or "",
             ]
@@ -295,15 +312,17 @@ class AppWindow(FluentWindow):
         stages = task.get("stages") or []
         completed = len([stage for stage in stages if stage.get("status") == "succeeded"])
         self.detail_title.setText(task.get("title") or task.get("url") or task.get("id"))
-        self.detail_status.setText(f"{task.get('status')} / {task.get('current_stage') or 'done'} / {task.get('id')}")
+        self.detail_status.setText(
+            f"{self._t(task.get('status') or '')} / {self._t(task.get('current_stage') or 'done')} / {task.get('id')}"
+        )
         self.progress.setValue(round(completed / len(stages) * 100) if stages else 0)
         self.stages_table.setRowCount(len(stages))
         for row, stage in enumerate(stages):
             values = [
-                stage.get("label") or stage.get("name") or "",
-                stage.get("status") or "",
+                self._t(stage.get("label") or stage.get("name") or ""),
+                self._t(stage.get("status") or ""),
                 _duration(stage.get("started_at"), stage.get("completed_at")),
-                stage.get("error_message") or stage.get("last_message") or "",
+                stage.get("error_message") or self._t(stage.get("last_message") or ""),
             ]
             for col, value in enumerate(values):
                 self.stages_table.setItem(row, col, _item(value))
@@ -317,9 +336,9 @@ class AppWindow(FluentWindow):
     def choose_upload_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Choose local video",
+            self._t("Choose local video"),
             str(self.repo_root),
-            "Video Files (*.mp4 *.mov *.m4v *.mkv *.webm *.avi *.flv *.wmv);;All Files (*)",
+            self._t("Video Files (*.mp4 *.mov *.m4v *.mkv *.webm *.avi *.flv *.wmv);;All Files (*)"),
         )
         if path:
             self.upload_file = Path(path)
@@ -334,7 +353,7 @@ class AppWindow(FluentWindow):
             return
         url = self.youtube_input.text().strip() or self.bilibili_input.text().strip()
         if not url:
-            self._error("Enter a URL or choose a local video.")
+            self._error(self._t("Enter a URL or choose a local video."))
             return
         self._job(lambda: self.client.create_task(url), self._created_task)
 
@@ -342,7 +361,7 @@ class AppWindow(FluentWindow):
         self.youtube_input.clear()
         self.bilibili_input.clear()
         self.upload_file = None
-        self.file_label.setText("No file selected")
+        self.file_label.setText(self._t("No file selected"))
         self.current_task_id = task["id"]
         self.refresh_tasks()
         self.load_task_detail(task["id"])
@@ -353,7 +372,7 @@ class AppWindow(FluentWindow):
             return
         task_id = self.current_task_id
         if action == "delete":
-            if QMessageBox.question(self, "Delete task", "Delete this task and its files?") != QMessageBox.Yes:
+            if QMessageBox.question(self, self._t("Delete task"), self._t("Delete this task and its files?")) != QMessageBox.Yes:
                 return
             self._job(lambda: self.client.delete_task(task_id), lambda _: self._after_delete())
         elif action == "rerun":
@@ -364,7 +383,7 @@ class AppWindow(FluentWindow):
     def _after_delete(self) -> None:
         self.current_task_id = None
         self.current_task = None
-        self.detail_title.setText("No task selected")
+        self.detail_title.setText(self._t("No task selected"))
         self.log_box.clear()
         self.refresh_tasks()
         self.switchTo(self.tasks_page)
@@ -375,7 +394,7 @@ class AppWindow(FluentWindow):
         if path and path.exists():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
         else:
-            self._error("Final video is not available yet.")
+            self._error(self._t("Final video is not available yet."))
 
     def load_settings(self) -> None:
         if not self.client:
@@ -389,7 +408,9 @@ class AppWindow(FluentWindow):
 
     def _settings_loaded(self, payload: tuple[dict[str, Any], dict[str, Any], dict[str, Any]]) -> None:
         cookie, openai, ytdlp = payload
-        self.cookie_text.setPlaceholderText("Saved cookie exists" if cookie.get("exists") else "Paste cookie content")
+        self.cookie_text.setPlaceholderText(
+            self._t("Saved cookie exists") if cookie.get("exists") else self._t("Paste cookie content")
+        )
         self.base_url_input.setText(openai.get("base_url", ""))
         self.api_key_input.setText(openai.get("api_key", "") if openai.get("has_api_key") else "")
         self.model_input.setText(openai.get("model", ""))
@@ -420,15 +441,17 @@ class AppWindow(FluentWindow):
         }
         cookie = self.cookie_text.toPlainText().strip()
         proxy_port = self.proxy_input.text().strip()
+        language = self.language_combo.currentData() or self.language
 
         def save() -> None:
             assert self.client
+            save_language(language)
             if cookie:
                 self.client.save_cookie(cookie)
             self.client.save_openai_settings(settings)
             self.client.save_ytdlp_settings(proxy_port)
 
-        self._job(save, lambda _: self._toast("Settings saved."))
+        self._job(save, lambda _: self._toast(self._t("Settings saved.")))
 
     def _toast(self, message: str) -> None:
         InfoBar.success("YouDubPlusPlus", message, parent=self, position=InfoBarPosition.TOP_RIGHT, duration=2200)

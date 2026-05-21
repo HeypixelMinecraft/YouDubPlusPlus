@@ -97,6 +97,7 @@ cp env.txt.example .env
 | `TTS_BACKEND` | `auto`、`index_tts` 或 `voxcpm` |
 | `INDEXTTS_MODEL_DIR` / `INDEXTTS_CFG_PATH` | IndexTTS checkpoints 目录和配置路径 |
 | `VOXCPM_MODEL` / `VOXCPM_MODEL_DIR` | VoxCPM2 回退模型配置 |
+| `YOUDUB_APP_LANGUAGE` | 桌面端界面语言，支持 `zh_CN` 或 `en_US` |
 
 源码运行时，`workfolder` 和 `data` 默认在仓库根目录；桌面打包后，它们默认在 `YouDubPlusPlus.exe` 同级目录，不会写进 PyInstaller 的 `_internal` 资源目录。
 
