@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from importlib import import_module
 from pathlib import Path
 
 from pydub import AudioSegment
@@ -30,13 +31,13 @@ def _download_checkpoints(model_dir: Path) -> None:
     model_dir.mkdir(parents=True, exist_ok=True)
 
     if source in {"modelscope", "ms"}:
-        from modelscope import snapshot_download  # type: ignore
+        snapshot_download = import_module("modelscope").snapshot_download
 
         snapshot_download(model_id, local_dir=str(model_dir))
         return
 
     if source in {"huggingface", "hf"}:
-        from huggingface_hub import snapshot_download  # type: ignore
+        snapshot_download = import_module("huggingface_hub").snapshot_download
 
         snapshot_download(
             repo_id=model_id,
@@ -80,7 +81,7 @@ def _load_tts():
         )
 
     try:
-        from indextts.infer_v2 import IndexTTS2  # type: ignore
+        IndexTTS2 = import_module("indextts.infer_v2").IndexTTS2
 
         _TTS = IndexTTS2(
             cfg_path=str(cfg_path),
@@ -99,7 +100,7 @@ def _load_tts():
 
     try:
         # Fallback to IndexTTS v1 API (no extra flags).
-        from indextts.infer import IndexTTS  # type: ignore
+        IndexTTS = import_module("indextts.infer").IndexTTS
 
         _TTS = IndexTTS(model_dir=str(model_dir), cfg_path=str(cfg_path))
         _TTS_API = "v1"

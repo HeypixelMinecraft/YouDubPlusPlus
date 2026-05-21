@@ -11,6 +11,7 @@ From the repository root:
 ```bash
 uv venv --python 3.12 .venv
 uv pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+uv pip install -r requirements-torch-cu126.txt
 python apps/desktop/main.py
 ```
 
@@ -25,6 +26,14 @@ To build locally:
 uv venv --python 3.12 .venv
 uv pip install -r requirements-ci.txt
 uv run pyinstaller --noconfirm apps/desktop/YouDubPlusPlus.spec
+```
+
+The default package is intentionally lightweight and does not bundle PyTorch or large model runtimes. For a GPU package that can run Demucs from the bundled app, install the CUDA PyTorch wheels and enable the heavy dependency bundle:
+
+```bash
+uv pip install -r requirements-desktop-gpu.txt
+uv pip install -r requirements-torch-cu126.txt
+YOUDUB_BUNDLE_GPU_DEPS=1 uv run pyinstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 ```
 
 Linux systems may need Qt runtime packages such as `libgl1`, `libegl1`, `libxkbcommon-x11-0`, and the common `libxcb-*` helpers. The GitHub Actions workflow installs these automatically.

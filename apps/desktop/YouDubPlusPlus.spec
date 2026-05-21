@@ -1,8 +1,41 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parents[1]
+BUNDLE_GPU_DEPS = os.getenv("YOUDUB_BUNDLE_GPU_DEPS", "").lower() in {"1", "true", "yes", "on"}
+
+heavy_hiddenimports = []
+heavy_excludes = [
+    "torch",
+    "torchaudio",
+    "torchvision",
+    "demucs",
+    "openunmix",
+    "diffq",
+    "dora",
+    "julius",
+    "lameenc",
+    "whisper",
+    "spacy",
+    "indextts",
+    "voxcpm",
+    "modelscope",
+    "huggingface_hub",
+]
+
+if BUNDLE_GPU_DEPS:
+    heavy_hiddenimports = [
+        "torch",
+        "torchaudio",
+        "whisper",
+        "indextts",
+        "voxcpm",
+        "modelscope",
+        "huggingface_hub",
+    ]
+    heavy_excludes = []
 
 
 a = Analysis(
@@ -22,16 +55,15 @@ a = Analysis(
         "backend.app.adapters.tts",
         "backend.app.adapters.voxcpm",
         "backend.app.adapters.ytdlp",
-        "voxcpm",
-        "modelscope",
         "requests",
         "yt_dlp",
         "qfluentwidgets",
-    ],
+    ]
+    + heavy_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=heavy_excludes,
     noarchive=False,
     optimize=0,
 )

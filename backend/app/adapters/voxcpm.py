@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from importlib import import_module
 from pathlib import Path
 
 import soundfile as sf
@@ -19,7 +20,7 @@ def _model_path() -> Path:
 
     model_id = os.getenv("VOXCPM_MODEL", "OpenBMB/VoxCPM2")
     local_dir = MODEL_CACHE_DIR / model_id.replace("/", "__")
-    from modelscope import snapshot_download
+    snapshot_download = import_module("modelscope").snapshot_download
 
     downloaded = snapshot_download(model_id, local_dir=str(local_dir))
     return Path(downloaded)
@@ -28,7 +29,7 @@ def _model_path() -> Path:
 def _load_model():
     global _MODEL
     if _MODEL is None:
-        from voxcpm import VoxCPM
+        VoxCPM = import_module("voxcpm").VoxCPM
 
         _MODEL = VoxCPM.from_pretrained(
             str(_model_path()),

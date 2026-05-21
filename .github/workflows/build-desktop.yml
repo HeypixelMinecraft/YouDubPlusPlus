@@ -85,10 +85,6 @@ jobs:
           uv pip install -r requirements-ci.txt
           uv pip install --upgrade pyinstaller
 
-      - name: Run backend smoke tests
-        run: |
-          uv run python -m pytest backend/tests/test_index_tts.py backend/tests/test_pipeline.py
-
       - name: Compile desktop sources
         run: |
           uv run python -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app

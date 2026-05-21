@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from importlib import import_module
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -41,7 +42,7 @@ def _load_model():
     if _MODEL is not None:
         return _MODEL
 
-    import whisper
+    whisper = import_module("whisper")
 
     name = os.getenv("WHISPER_MODEL", "large-v3-turbo")
     download_root = os.getenv("WHISPER_DOWNLOAD_ROOT") or None

@@ -52,6 +52,14 @@ uv venv --python 3.12 .venv
 uv pip install -r requirements.txt
 ```
 
+如果要在本机用 CUDA 跑 Demucs/Whisper/TTS，请额外安装 GPU 版 PyTorch。默认提供 CUDA 12.6 的安装文件：
+
+```powershell
+uv pip install -r requirements-torch-cu126.txt
+```
+
+如果你的显卡驱动或 CUDA 版本不同，请按 [PyTorch 官方安装页](https://pytorch.org/get-started/locally/) 选择对应命令。
+
 国内网络可以使用镜像：
 
 ```powershell
@@ -110,6 +118,15 @@ macOS / Linux：
 ```powershell
 uv pip install -r requirements-ci.txt
 pyinstaller --noconfirm apps/desktop/YouDubPlusPlus.spec
+```
+
+上面的命令生成轻量桌面包，适合 CI 验证界面和基础流程；它不会把 Torch、Demucs、IndexTTS、VoxCPM2 等大模型依赖打进包里。要生成可直接运行 Demucs 的 GPU 完整包，请先安装 GPU 依赖并开启打包开关：
+
+```powershell
+uv pip install -r requirements-desktop-gpu.txt
+uv pip install -r requirements-torch-cu126.txt
+$env:YOUDUB_BUNDLE_GPU_DEPS = "1"
+pyinstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 ```
 
 也可以使用 GitHub Actions 的 `Build YouDubPlusPlus` 工作流生成 Windows、macOS、Linux artifacts。为避免日常构建耗时过长，完整打包只在手动触发或 `v*` tag 时运行；普通 push/PR 只跑轻量 smoke tests。
