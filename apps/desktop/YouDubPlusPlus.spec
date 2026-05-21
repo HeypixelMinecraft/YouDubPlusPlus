@@ -44,6 +44,8 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.svg"), "assets"),
+        (str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.ico"), "assets"),
+        (str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.png"), "assets"),
         (str(ROOT / "submodule" / "demucs" / "demucs"), "submodule/demucs/demucs"),
         (str(ROOT / "submodule" / "demucs" / "conf"), "submodule/demucs/conf"),
         (str(ROOT / "submodule" / "demucs" / "README.md"), "submodule/demucs"),
@@ -83,6 +85,7 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
+    icon=str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.ico"),
     codesign_identity=None,
     entitlements_file=None,
 )
