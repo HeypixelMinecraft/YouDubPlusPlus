@@ -26,6 +26,7 @@ if (-not $SkipCudaCheck) {
 
 $env:YOUDUB_BUNDLE_GPU_DEPS = "1"
 uv run python -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
+uv run python -c "import PyQt5, qfluentwidgets; print('PyQt5 desktop dependencies ok')"
 uv run pyinstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 
 Write-Host "Done: dist/YouDubPlusPlus"

@@ -19,6 +19,7 @@ uv pip install --upgrade pyinstaller
 
 $env:YOUDUB_BUNDLE_GPU_DEPS = "1"
 uv run python -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
+uv run python -c "import PyQt5, qfluentwidgets; print('PyQt5 desktop dependencies ok')"
 uv run python -c "import torch; print(f'torch={torch.__version__}; cuda_available={torch.cuda.is_available()}')"
 uv run pyinstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 
