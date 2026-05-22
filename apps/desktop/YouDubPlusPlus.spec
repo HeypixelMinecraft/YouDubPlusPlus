@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all, collect_submodules
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
 
 ROOT = Path(SPECPATH).parents[1]
 BUNDLE_GPU_DEPS = os.getenv("YOUDUB_BUNDLE_GPU_DEPS", "").lower() in {"1", "true", "yes", "on"}
@@ -12,6 +12,7 @@ pyqt_datas, pyqt_binaries, pyqt_hiddenimports = collect_all("PyQt5")
 qfw_datas, qfw_binaries, qfw_hiddenimports = collect_all("qfluentwidgets")
 
 heavy_hiddenimports = []
+heavy_datas = []
 heavy_excludes = [
     "torch",
     "torchaudio",
@@ -31,6 +32,7 @@ heavy_excludes = [
 ]
 
 if BUNDLE_GPU_DEPS:
+    heavy_datas = collect_data_files("whisper")
     heavy_hiddenimports = [
         "torch",
         "torchaudio",
@@ -70,7 +72,8 @@ a = Analysis(
         (str(ROOT / "submodule" / "demucs" / "README.md"), "submodule/demucs"),
     ]
     + pyqt_datas
-    + qfw_datas,
+    + qfw_datas
+    + heavy_datas,
     hiddenimports=[
         "backend.app.main",
         "backend.app.pipeline",
