@@ -51,15 +51,12 @@ jobs:
           - os: windows-latest
             name: Windows desktop
             artifact: YouDubPlusPlus-windows
-            torch: cuda
           - os: macos-latest
             name: macOS desktop
             artifact: YouDubPlusPlus-macos
-            torch: cpu
           - os: ubuntu-latest
             name: Linux desktop
             artifact: YouDubPlusPlus-linux
-            torch: cuda
 
     steps:
       - name: Checkout
@@ -80,7 +77,6 @@ jobs:
           cache-dependency-glob: |
             requirements-ci.txt
             requirements-desktop-gpu.txt
-            requirements-torch-cu126.txt
 
       - name: Set up Python
         run: uv python install 3.12
@@ -91,13 +87,7 @@ jobs:
           uv pip install -r requirements-desktop-gpu.txt
           uv pip install --upgrade pyinstaller
 
-      - name: Install CUDA PyTorch
-        if: matrix.torch == 'cuda'
-        run: |
-          uv pip install -r requirements-torch-cu126.txt
-
       - name: Install CPU PyTorch
-        if: matrix.torch == 'cpu'
         run: |
           uv pip install torch torchaudio
 
