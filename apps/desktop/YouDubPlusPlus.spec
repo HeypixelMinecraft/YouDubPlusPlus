@@ -10,6 +10,7 @@ BUNDLE_GPU_DEPS = os.getenv("YOUDUB_BUNDLE_GPU_DEPS", "").lower() in {"1", "true
 
 pyqt_datas, pyqt_binaries, pyqt_hiddenimports = collect_all("PyQt5")
 qfw_datas, qfw_binaries, qfw_hiddenimports = collect_all("qfluentwidgets")
+audiostretchy_datas = collect_data_files("audiostretchy", includes=["interface/**/*"])
 
 heavy_hiddenimports = []
 heavy_datas = []
@@ -73,10 +74,12 @@ a = Analysis(
     ]
     + pyqt_datas
     + qfw_datas
+    + audiostretchy_datas
     + heavy_datas,
     hiddenimports=[
         "backend.app.main",
         "backend.app.pipeline",
+        "backend.app.adapters.audio",
         "backend.app.adapters.demucs",
         "backend.app.adapters.google_translate",
         "backend.app.adapters.translate",
