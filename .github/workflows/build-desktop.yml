@@ -103,18 +103,21 @@ jobs:
           fi
 
       - name: Compile desktop sources
+        shell: pwsh
         run: |
-          "${{ steps.python.outputs.exe }}" -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
+          & "${{ steps.python.outputs.exe }}" -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
 
       - name: Import desktop entrypoint
+        shell: pwsh
         run: |
-          "${{ steps.python.outputs.exe }}" -c "import sys; sys.path.insert(0, 'apps/desktop'); import youdub_desktop.main; from youdub_desktop.ui.app_window import AppWindow; print('desktop imports ok')"
+          & "${{ steps.python.outputs.exe }}" -c "import sys; sys.path.insert(0, 'apps/desktop'); import youdub_desktop.main; from youdub_desktop.ui.app_window import AppWindow; print('desktop imports ok')"
 
       - name: Build desktop package
+        shell: pwsh
         env:
           YOUDUB_BUNDLE_GPU_DEPS: "1"
         run: |
-          "${{ steps.python.outputs.exe }}" -m PyInstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
+          & "${{ steps.python.outputs.exe }}" -m PyInstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
