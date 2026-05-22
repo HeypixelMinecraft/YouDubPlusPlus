@@ -51,12 +51,15 @@ jobs:
           - os: windows-latest
             name: Windows desktop
             artifact: YouDubPlusPlus-windows
+            torch: cuda
           - os: macos-latest
             name: macOS desktop
             artifact: YouDubPlusPlus-macos
+            torch: cpu
           - os: ubuntu-latest
             name: Linux desktop
             artifact: YouDubPlusPlus-linux
+            torch: cuda
 
     steps:
       - name: Checkout
@@ -74,7 +77,10 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          cache-dependency-glob: requirements-ci.txt
+          cache-dependency-glob: |
+            requirements-ci.txt
+            requirements-desktop-gpu.txt
+            requirements-torch-cu126.txt
 
       - name: Set up Python
         run: uv python install 3.12
@@ -82,8 +88,18 @@ jobs:
       - name: Create environment
         run: |
           uv venv --python 3.12 .venv
-          uv pip install -r requirements-ci.txt
+          uv pip install -r requirements-desktop-gpu.txt
           uv pip install --upgrade pyinstaller
+
+      - name: Install CUDA PyTorch
+        if: matrix.torch == 'cuda'
+        run: |
+          uv pip install -r requirements-torch-cu126.txt
+
+      - name: Install CPU PyTorch
+        if: matrix.torch == 'cpu'
+        run: |
+          uv pip install torch torchaudio
 
       - name: Compile desktop sources
         run: |
@@ -94,8 +110,10 @@ jobs:
           uv run python -c "import sys; sys.path.insert(0, 'apps/desktop'); import youdub_desktop.main; from youdub_desktop.ui.app_window import AppWindow; print('desktop imports ok')"
 
       - name: Build desktop package
+        env:
+          YOUDUB_BUNDLE_GPU_DEPS: "1"
         run: |
-          uv run pyinstaller --noconfirm apps/desktop/YouDubPlusPlus.spec
+          uv run pyinstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
