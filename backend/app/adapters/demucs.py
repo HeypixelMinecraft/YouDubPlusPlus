@@ -21,7 +21,14 @@ def _device() -> str:
         return "cpu"
 
 
-def _disable_demucs_tqdm() -> None:
+def _ensure_console_streams() -> None:
+    if sys.stdout is None:
+        sys.stdout = StringIO()
+    if sys.stderr is None:
+        sys.stderr = StringIO()
+
+
+def _disable_demucs_progress(demucs_api: Any) -> None:
     try:
         demucs_apply = import_module("demucs.apply")
     except Exception:
@@ -40,12 +47,21 @@ def _disable_demucs_tqdm() -> None:
     quiet_tqdm._youdub_disabled = True  # type: ignore[attr-defined]
     tqdm_module.tqdm = quiet_tqdm
 
+    apply_model: Callable[..., Any] | None = getattr(demucs_apply, "apply_model", None)
+    if apply_model is None or getattr(apply_model, "_youdub_progress_disabled", False):
+        return
+
+    def quiet_apply_model(*args: Any, **kwargs: Any) -> Any:
+        kwargs["progress"] = False
+        return apply_model(*args, **kwargs)
+
+    quiet_apply_model._youdub_progress_disabled = True  # type: ignore[attr-defined]
+    demucs_apply.apply_model = quiet_apply_model
+    demucs_api.apply_model = quiet_apply_model
+
 
 def separate_audio(video_file: Path, session: Path) -> tuple[Path, Path]:
-    if sys.stdout is None:
-        sys.stdout = StringIO()
-    if sys.stderr is None:
-        sys.stderr = StringIO()
+    _ensure_console_streams()
 
     demucs_path = REPO_ROOT / "submodule" / "demucs"
     if not demucs_path.exists():
@@ -63,7 +79,7 @@ def separate_audio(video_file: Path, session: Path) -> tuple[Path, Path]:
                 "For a bundled desktop app, rebuild with YOUDUB_BUNDLE_GPU_DEPS=1 after installing GPU dependencies."
             ) from exc
         raise
-    _disable_demucs_tqdm()
+    _disable_demucs_progress(demucs_api)
     Separator = demucs_api.Separator
     save_audio = demucs_api.save_audio
 
