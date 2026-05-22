@@ -124,11 +124,24 @@ uv pip install -r requirements-ci.txt
 pyinstaller --noconfirm apps/desktop/YouDubPlusPlus.spec
 ```
 
-上面的命令生成轻量桌面包，适合 CI 验证界面和基础流程；它不会把 Torch、Demucs、IndexTTS、VoxCPM2 等大模型依赖打进包里。要生成可直接运行 Demucs 的 GPU 完整包，请先安装 GPU 依赖并开启打包开关：
+也可以直接使用本地构建脚本：
+
+```powershell
+.\build_cpu.ps1
+.\build_cuda.ps1
+```
+
+`build_cuda.ps1` 默认安装 PyTorch CUDA 12.8 wheel。PyTorch 官方当前没有发布 `cu131` pip wheel；如果你的本机 CUDA/驱动显示为 13.1，通常仍可运行 PyTorch 自带的 CUDA 12.8 runtime。要改用其他 PyTorch 源，可以传入：
+
+```powershell
+.\build_cuda.ps1 -TorchRequirements requirements-torch-cu126.txt
+```
+
+上面的基础 PyInstaller 命令生成轻量桌面包，适合 CI 验证界面和基础流程；它不会把 Torch、Demucs、IndexTTS、VoxCPM2 等大模型依赖打进包里。要手动生成可直接运行 Demucs 的 GPU 完整包，请先安装 GPU 依赖并开启打包开关：
 
 ```powershell
 uv pip install -r requirements-desktop-gpu.txt
-uv pip install -r requirements-torch-cu126.txt
+uv pip install -r requirements-torch-cu128.txt
 $env:YOUDUB_BUNDLE_GPU_DEPS = "1"
 pyinstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 ```
