@@ -317,6 +317,37 @@ def test_openai_settings_persists_translate_concurrency(monkeypatch, tmp_path):
     assert database.get_openai_settings()["translate_concurrency"] == "32"
 
 
+def test_translate_settings_default_to_openai(monkeypatch, tmp_path):
+    configure_tmp_runtime(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    response = client.get("/api/settings/translate")
+
+    assert response.status_code == 200
+    assert response.json() == {"mode": "openai"}
+
+
+def test_translate_settings_persist_google(monkeypatch, tmp_path):
+    configure_tmp_runtime(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    saved = client.post("/api/settings/translate", json={"mode": "google"})
+    loaded = client.get("/api/settings/translate")
+
+    assert saved.status_code == 200
+    assert saved.json() == {"mode": "google"}
+    assert loaded.json() == {"mode": "google"}
+
+
+def test_translate_settings_reject_invalid_mode(monkeypatch, tmp_path):
+    configure_tmp_runtime(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    response = client.post("/api/settings/translate", json={"mode": "bad"})
+
+    assert response.status_code == 422
+
+
 def test_resume_task_requeues_failed_task(monkeypatch, tmp_path):
     configure_tmp_runtime(monkeypatch, tmp_path)
     enqueued: list[str] = []

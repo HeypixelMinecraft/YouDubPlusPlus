@@ -58,6 +58,15 @@ def openai_defaults() -> dict[str, str]:
     }
 
 
+def translate_defaults() -> dict[str, str]:
+    mode = os.getenv("TRANSLATE_MODE", "openai").strip().lower() or "openai"
+    if mode not in {"openai", "google"}:
+        mode = "openai"
+    return {
+        "mode": mode,
+    }
+
+
 def ffmpeg_binary() -> str:
     return os.getenv("FFMPEG_PATH", "").strip() or "ffmpeg"
 

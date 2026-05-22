@@ -51,6 +51,10 @@ class OpenAIModelsRequest(BaseModel):
     api_key: str = ""
 
 
+class TranslationSettingsUpdate(BaseModel):
+    mode: str = "openai"
+
+
 class YtdlpSettingsUpdate(BaseModel):
     proxy_port: str = ""
 
@@ -327,6 +331,20 @@ def get_openai_models(payload: OpenAIModelsRequest) -> dict:
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to fetch models: {exc}") from exc
     return {"models": models}
+
+
+@app.get("/api/settings/translate")
+def get_translate_settings() -> dict:
+    return database.get_translate_settings()
+
+
+@app.post("/api/settings/translate")
+def save_translate_settings(payload: TranslationSettingsUpdate) -> dict:
+    try:
+        database.save_translate_settings(payload.mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return get_translate_settings()
 
 
 @app.get("/api/settings/ytdlp")

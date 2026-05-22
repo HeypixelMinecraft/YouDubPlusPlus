@@ -147,6 +147,16 @@ class DirectClient:
         settings = database.get_openai_settings()
         return list_openai_models(base_url=base_url or settings["base_url"], api_key=api_key or settings["api_key"])
 
+    def get_translate_settings(self) -> dict[str, Any]:
+        return database.get_translate_settings()
+
+    def save_translate_settings(self, mode: str) -> dict[str, Any]:
+        try:
+            database.save_translate_settings(mode)
+        except ValueError as exc:
+            raise RuntimeError(str(exc)) from exc
+        return self.get_translate_settings()
+
     def get_ytdlp_settings(self) -> dict[str, Any]:
         return database.get_ytdlp_settings()
 

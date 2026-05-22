@@ -233,6 +233,9 @@ class AppWindow(FluentWindow):
         self.language_combo.setCurrentIndex(max(index, 0))
         self.proxy_input = LineEdit()
         self.proxy_input.setPlaceholderText("7890")
+        self.translation_mode_combo = ComboBox()
+        self.translation_mode_combo.addItem("OpenAI", userData="openai")
+        self.translation_mode_combo.addItem("Google Translate", userData="google")
         self.base_url_input = LineEdit()
         self.api_key_input = LineEdit()
         self.api_key_input.setEchoMode(LineEdit.Password)
@@ -254,17 +257,19 @@ class AppWindow(FluentWindow):
         grid.addWidget(cookie_help, 2, 1, 1, 3)
         grid.addWidget(StrongBodyLabel(self._t("yt-dlp proxy port")), 3, 0)
         grid.addWidget(self.proxy_input, 3, 1)
-        grid.addWidget(StrongBodyLabel(self._t("OpenAI base URL")), 4, 0)
-        grid.addWidget(self.base_url_input, 4, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel(self._t("OpenAI API key")), 5, 0)
-        grid.addWidget(self.api_key_input, 5, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel(self._t("Model")), 6, 0)
-        grid.addWidget(self.model_input, 6, 1)
-        grid.addWidget(self.models_combo, 6, 2)
-        grid.addWidget(load_button, 6, 3)
-        grid.addWidget(StrongBodyLabel(self._t("Translate concurrency")), 7, 0)
-        grid.addWidget(self.concurrency_input, 7, 1)
-        grid.addWidget(save_button, 8, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Translation mode")), 4, 0)
+        grid.addWidget(self.translation_mode_combo, 4, 1)
+        grid.addWidget(StrongBodyLabel(self._t("OpenAI base URL")), 5, 0)
+        grid.addWidget(self.base_url_input, 5, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel(self._t("OpenAI API key")), 6, 0)
+        grid.addWidget(self.api_key_input, 6, 1, 1, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Model")), 7, 0)
+        grid.addWidget(self.model_input, 7, 1)
+        grid.addWidget(self.models_combo, 7, 2)
+        grid.addWidget(load_button, 7, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Translate concurrency")), 8, 0)
+        grid.addWidget(self.concurrency_input, 8, 1)
+        grid.addWidget(save_button, 9, 3)
         layout.addWidget(card)
         layout.addStretch(1)
         return page
@@ -409,17 +414,24 @@ class AppWindow(FluentWindow):
         if not self.client:
             return
 
-        def load() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        def load() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
             assert self.client
-            return self.client.get_cookie_info(), self.client.get_openai_settings(), self.client.get_ytdlp_settings()
+            return (
+                self.client.get_cookie_info(),
+                self.client.get_openai_settings(),
+                self.client.get_ytdlp_settings(),
+                self.client.get_translate_settings(),
+            )
 
         self._job(load, self._settings_loaded)
 
-    def _settings_loaded(self, payload: tuple[dict[str, Any], dict[str, Any], dict[str, Any]]) -> None:
-        cookie, openai, ytdlp = payload
+    def _settings_loaded(self, payload: tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]) -> None:
+        cookie, openai, ytdlp, translate_settings = payload
         self.cookie_text.setPlaceholderText(
             self._t("Saved cookie exists") if cookie.get("exists") else self._t("Paste cookie content")
         )
+        mode_index = self.translation_mode_combo.findData(translate_settings.get("mode", "openai"))
+        self.translation_mode_combo.setCurrentIndex(max(mode_index, 0))
         self.base_url_input.setText(openai.get("base_url", ""))
         self.api_key_input.setText(openai.get("api_key", "") if openai.get("has_api_key") else "")
         self.model_input.setText(openai.get("model", ""))
@@ -451,12 +463,14 @@ class AppWindow(FluentWindow):
         cookie = self.cookie_text.toPlainText().strip()
         proxy_port = self.proxy_input.text().strip()
         language = self.language_combo.currentData() or self.language
+        translation_mode = self.translation_mode_combo.currentData() or "openai"
 
         def save() -> None:
             assert self.client
             save_language(language)
             if cookie:
                 self.client.save_cookie(cookie)
+            self.client.save_translate_settings(translation_mode)
             self.client.save_openai_settings(settings)
             self.client.save_ytdlp_settings(proxy_port)
 

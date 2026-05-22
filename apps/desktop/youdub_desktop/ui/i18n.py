@@ -46,6 +46,7 @@ _ZH_CN = {
     "Save settings": "保存设置",
     "YouTube cookie": "YouTube cookie",
     "yt-dlp proxy port": "yt-dlp 代理端口",
+    "Translation mode": "翻译模式",
     "OpenAI base URL": "OpenAI 接口地址",
     "OpenAI API key": "OpenAI API key",
     "Model": "模型",

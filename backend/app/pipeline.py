@@ -196,17 +196,27 @@ class PipelineRunner:
 
     def _translate(self, task: dict) -> None:
         import json as _json
-        from .adapters.openai_translate import translate_asr
+        from .adapters.translate import translate_asr
 
         session = _require(self.artifacts.session, "session")
         asr_file = _require(self.artifacts.asr_fixed_file, "asr_fixed_file")
-        settings = database.get_openai_settings()
+        openai_settings = database.get_openai_settings()
+        translate_settings = database.get_translate_settings()
         source = detect_source(task["url"])
-        self.stage_message(
-            "translate",
-            f"Using model {settings['model']} at {settings['base_url']} ({source.asr_language}->{source.target_language})",
+        if translate_settings["mode"] == "google":
+            self.stage_message(
+                "translate",
+                f"Using Google Translate ({source.asr_language}->{source.target_language})",
+            )
+        else:
+            self.stage_message(
+                "translate",
+                f"Using model {openai_settings['model']} at {openai_settings['base_url']} "
+                f"({source.asr_language}->{source.target_language})",
+            )
+        self.artifacts.translation_file = translate_asr(
+            asr_file, session, translate_settings, openai_settings, source
         )
-        self.artifacts.translation_file = translate_asr(asr_file, session, settings, source)
         items = _json.loads(self.artifacts.translation_file.read_text(encoding="utf-8"))["translation"]
         self.stage_message(
             "translate",

@@ -6,11 +6,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .config import DB_PATH, ensure_runtime_dirs, openai_defaults, ytdlp_defaults
+from .config import DB_PATH, ensure_runtime_dirs, openai_defaults, translate_defaults, ytdlp_defaults
 from .stages import STAGES
 
 
 ACTIVE_STATUSES = ("queued", "running")
+TRANSLATE_MODES = {"openai", "google"}
 
 
 def now_iso() -> str:
@@ -72,6 +73,11 @@ def init_db() -> None:
             conn.execute(
                 "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
                 (f"ytdlp.{key}", value, now_iso()),
+            )
+        for key, value in translate_defaults().items():
+            conn.execute(
+                "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+                (f"translate.{key}", _normalize_translate_mode(value), now_iso()),
             )
         existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
         if "title" not in existing_columns:
@@ -278,6 +284,26 @@ def get_setting(key: str, default: str = "") -> str:
     with connect() as conn:
         row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
     return row["value"] if row else default
+
+
+def _normalize_translate_mode(mode: str) -> str:
+    cleaned = (mode or "").strip().lower() or "openai"
+    if cleaned not in TRANSLATE_MODES:
+        raise ValueError("Translation mode must be one of: openai, google.")
+    return cleaned
+
+
+def get_translate_settings() -> dict[str, str]:
+    defaults = translate_defaults()
+    try:
+        mode = _normalize_translate_mode(get_setting("translate.mode", defaults["mode"]))
+    except ValueError:
+        mode = "openai"
+    return {"mode": mode}
+
+
+def save_translate_settings(mode: str) -> None:
+    set_setting("translate.mode", _normalize_translate_mode(mode))
 
 
 def get_openai_settings() -> dict[str, str]:

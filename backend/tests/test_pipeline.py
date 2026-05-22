@@ -121,3 +121,56 @@ def test_tts_stage_uses_configured_tts_adapter(monkeypatch, tmp_path):
     )
     assert runner.artifacts.tts_dir == output_dir
 
+
+def test_translate_stage_dispatches_openai_by_default(monkeypatch, tmp_path):
+    from backend.app.adapters import translate
+
+    configure_db(monkeypatch, tmp_path)
+    task_id = database.create_task("https://www.youtube.com/watch?v=abcdefghijk")
+    runner = PipelineRunner(task_id)
+    metadata = tmp_path / "metadata"
+    metadata.mkdir()
+    runner.artifacts.session = tmp_path
+    runner.artifacts.asr_fixed_file = metadata / "asr.fixed.json"
+    runner.artifacts.asr_fixed_file.write_text('{"result":{"utterances":[]}}', encoding="utf-8")
+    called = {}
+
+    def fake_translate_asr(asr_file, session, translate_settings, openai_settings, source):
+        called["mode"] = translate_settings["mode"]
+        out = metadata / "translation.zh.json"
+        out.write_text('{"translation":[]}', encoding="utf-8")
+        return out
+
+    monkeypatch.setattr(translate, "translate_asr", fake_translate_asr)
+
+    runner._translate(database.get_task(task_id))
+
+    assert called["mode"] == "openai"
+
+
+def test_translate_stage_dispatches_google_when_configured(monkeypatch, tmp_path):
+    from backend.app.adapters import translate
+
+    configure_db(monkeypatch, tmp_path)
+    database.save_translate_settings("google")
+    task_id = database.create_task("https://www.youtube.com/watch?v=abcdefghijk")
+    runner = PipelineRunner(task_id)
+    metadata = tmp_path / "metadata"
+    metadata.mkdir()
+    runner.artifacts.session = tmp_path
+    runner.artifacts.asr_fixed_file = metadata / "asr.fixed.json"
+    runner.artifacts.asr_fixed_file.write_text('{"result":{"utterances":[]}}', encoding="utf-8")
+    called = {}
+
+    def fake_translate_asr(asr_file, session, translate_settings, openai_settings, source):
+        called["mode"] = translate_settings["mode"]
+        out = metadata / "translation.zh.json"
+        out.write_text('{"translation":[]}', encoding="utf-8")
+        return out
+
+    monkeypatch.setattr(translate, "translate_asr", fake_translate_asr)
+
+    runner._translate(database.get_task(task_id))
+
+    assert called["mode"] == "google"
+
