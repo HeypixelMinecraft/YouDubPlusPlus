@@ -2,7 +2,7 @@
 
 YouDubPlusPlus 是一个桌面端视频本地化工具。它把单个 YouTube 或 Bilibili 视频转换成目标语言配音版：下载视频、分离人声与背景音、识别字幕、翻译、生成配音、混音、压制字幕，最后输出本地 mp4。
 
-当前项目已移除原 Next.js Web 前端，主界面改为 PyQt + PyQt-Fluent-Widgets 桌面应用。桌面端直接调用后端任务、数据库和流水线，不需要启动 `localhost:3000` 或前后端分离服务。
+[原项目](https://github.com/liuzhao1225/YouDub-webui)已移除原 Next.js Web 前端，主界面改为 PyQt + PyQt-Fluent-Widgets 桌面应用。桌面端直接调用后端任务、数据库和流水线，不需要启动 `localhost:3000` 或前后端分离服务。
 
 English README: [README.en.md](README.en.md)
 
@@ -181,4 +181,4 @@ submodule/demucs/  Demucs 源码子模块
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+GPL3. See [LICENSE](LICENSE).
