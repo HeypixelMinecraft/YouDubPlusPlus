@@ -1,7 +1,8 @@
 param(
-    [string]$PythonVersion = "3.12",
+    [string]$PythonVersion = "3.11",
     [string]$TorchRequirements = "requirements-torch-cu128.txt",
-    [switch]$SkipCudaCheck
+    [switch]$SkipCudaCheck,
+    [switch]$RecreateVenv
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,8 +12,16 @@ Set-Location $Root
 Write-Host "Building YouDubPlusPlus CUDA desktop package..."
 Write-Host "PyTorch does not currently publish a cu131 pip wheel; this script uses cu128 by default."
 $PythonExe = Join-Path $Root ".venv\Scripts\python.exe"
+if ($RecreateVenv -and (Test-Path ".venv")) {
+    Write-Host "Removing existing .venv"
+    Remove-Item -Recurse -Force ".venv"
+}
 if (Test-Path $PythonExe) {
-    Write-Host "Using existing .venv"
+    $CurrentPython = & $PythonExe -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+    if ($CurrentPython -ne $PythonVersion) {
+        throw ".venv uses Python $CurrentPython, but this build needs Python $PythonVersion because IndexTTS depends on numba<3.12 support. Run .\build_cuda.ps1 -RecreateVenv or delete .venv."
+    }
+    Write-Host "Using existing .venv with Python $CurrentPython"
 } else {
     Write-Host "Creating .venv with Python $PythonVersion"
     uv venv --python $PythonVersion .venv

@@ -23,17 +23,14 @@ GitHub Actions runs fast smoke tests on every push and PR. Full Windows, macOS, 
 To build locally:
 
 ```bash
-uv venv --python 3.12 .venv
-uv pip install -r requirements-ci.txt
-uv run pyinstaller --noconfirm apps/desktop/YouDubPlusPlus.spec
+./build_cpu.ps1
+./build_cuda.ps1
 ```
 
-The default package is intentionally lightweight and does not bundle PyTorch or large model runtimes. For a GPU package that can run Demucs from the bundled app, install the CUDA PyTorch wheels and enable the heavy dependency bundle:
+Full desktop builds use Python 3.11 because IndexTTS currently depends on `numba==0.58.1`, which does not support Python 3.12. If an old `.venv` uses Python 3.12, rebuild it:
 
 ```bash
-uv pip install -r requirements-desktop-gpu.txt
-uv pip install -r requirements-torch-cu126.txt
-YOUDUB_BUNDLE_GPU_DEPS=1 uv run pyinstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
+./build_cuda.ps1 -RecreateVenv
 ```
 
 Linux systems may need Qt runtime packages such as `libgl1`, `libegl1`, `libxkbcommon-x11-0`, and the common `libxcb-*` helpers. The GitHub Actions workflow installs these automatically.

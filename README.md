@@ -17,7 +17,8 @@ English README: [README.en.md](README.en.md)
 
 ## 环境要求
 
-- Python 3.12
+- Python 3.12 for lightweight development and tests
+- Python 3.11 for full desktop builds with IndexTTS, because IndexTTS currently depends on `numba==0.58.1`, which does not support Python 3.12
 - Git 和 Git submodule
 - FFmpeg / ffprobe，并确保在 `PATH` 中可用
 - 处理 YouTube 时建议准备可用代理和 Netscape 格式 Cookie。推荐使用 Chrome 插件 [get-cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 导出 Netscape 格式 cookie 后粘贴到桌面端设置页。
@@ -129,6 +130,13 @@ pyinstaller --noconfirm apps/desktop/YouDubPlusPlus.spec
 ```powershell
 .\build_cpu.ps1
 .\build_cuda.ps1
+```
+
+本地完整构建脚本默认使用 Python 3.11。如果 `.venv` 已存在但里面是 Python 3.12，脚本会停止并提示重建虚拟环境：
+
+```powershell
+.\build_cpu.ps1 -RecreateVenv
+.\build_cuda.ps1 -RecreateVenv
 ```
 
 `build_cuda.ps1` 默认安装 PyTorch CUDA 12.8 wheel。PyTorch 官方当前没有发布 `cu131` pip wheel；如果你的本机 CUDA/驱动显示为 13.1，通常仍可运行 PyTorch 自带的 CUDA 12.8 runtime。要改用其他 PyTorch 源，可以传入：

@@ -79,11 +79,11 @@ jobs:
             requirements-desktop-gpu.txt
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.11
 
       - name: Create environment
         run: |
-          uv venv --python 3.12 .venv
+          uv venv --python 3.11 .venv
           uv pip install -r requirements-ci.txt
           uv pip install -r requirements-desktop-gpu.txt
           uv pip install --upgrade pyinstaller

@@ -1,5 +1,6 @@
 param(
-    [string]$PythonVersion = "3.12"
+    [string]$PythonVersion = "3.11",
+    [switch]$RecreateVenv
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,8 +9,16 @@ Set-Location $Root
 
 Write-Host "Building YouDubPlusPlus CPU desktop package..."
 $PythonExe = Join-Path $Root ".venv\Scripts\python.exe"
+if ($RecreateVenv -and (Test-Path ".venv")) {
+    Write-Host "Removing existing .venv"
+    Remove-Item -Recurse -Force ".venv"
+}
 if (Test-Path $PythonExe) {
-    Write-Host "Using existing .venv"
+    $CurrentPython = & $PythonExe -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+    if ($CurrentPython -ne $PythonVersion) {
+        throw ".venv uses Python $CurrentPython, but this build needs Python $PythonVersion because IndexTTS depends on numba<3.12 support. Run .\build_cpu.ps1 -RecreateVenv or delete .venv."
+    }
+    Write-Host "Using existing .venv with Python $CurrentPython"
 } else {
     Write-Host "Creating .venv with Python $PythonVersion"
     uv venv --python $PythonVersion .venv
