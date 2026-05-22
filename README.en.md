@@ -2,7 +2,7 @@
 
 YouDubPlusPlus is a desktop video-localization tool. It turns a single YouTube or Bilibili video into a dubbed video in the target language: download, vocal/background separation, transcription, translation, voice generation, audio mixing, subtitle rendering, and final local mp4 output.
 
-The old Next.js Web frontend has been removed. The main app is now a PyQt + PyQt-Fluent-Widgets desktop app. It calls the backend tasks, database, and pipeline directly in process, so you do not need to run `localhost:3000` or a separate frontend server.
+[Origial project](https://github.com/liuzhao1225/YouDub-webui) Next.js Web frontend has been removed. The main app is now a PyQt + PyQt-Fluent-Widgets desktop app. It calls the backend tasks, database, and pipeline directly in process, so you do not need to run `localhost:3000` or a separate frontend server.
 
 Chinese README: [README.md](README.md)
 
@@ -141,4 +141,4 @@ submodule/demucs/  Demucs source submodule
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+GPL3. See [LICENSE](LICENSE).
