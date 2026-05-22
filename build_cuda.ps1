@@ -26,6 +26,7 @@ if (Test-Path $PythonExe) {
     Write-Host "Creating .venv with Python $PythonVersion"
     uv venv --python $PythonVersion .venv
 }
+uv pip install --python $PythonExe -r requirements-ci.txt
 uv pip install --python $PythonExe -r requirements-desktop-gpu.txt
 uv pip install --python $PythonExe -r $TorchRequirements
 uv pip install --python $PythonExe --upgrade pyinstaller
@@ -36,7 +37,7 @@ if (-not $SkipCudaCheck) {
 
 $env:YOUDUB_BUNDLE_GPU_DEPS = "1"
 & $PythonExe -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
-& $PythonExe -c "import PyQt5, qfluentwidgets; print('PyQt5 desktop dependencies ok')"
+& $PythonExe -c "import importlib; modules=['PyQt5','PyQt5.QtCore','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.sip','qfluentwidgets','torch','whisper','indextts','voxcpm','modelscope','huggingface_hub']; [importlib.import_module(m) for m in modules]; print('desktop dependencies ok')"
 & $PythonExe -m PyInstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 
 Write-Host "Done: dist/YouDubPlusPlus"
