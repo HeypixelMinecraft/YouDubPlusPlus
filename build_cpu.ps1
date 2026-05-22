@@ -7,7 +7,12 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
 Write-Host "Building YouDubPlusPlus CPU desktop package..."
-uv venv --python $PythonVersion .venv
+if (Test-Path ".venv") {
+    Write-Host "Using existing .venv"
+} else {
+    Write-Host "Creating .venv with Python $PythonVersion"
+    uv venv --python $PythonVersion .venv
+}
 uv pip install -r requirements-desktop-gpu.txt
 uv pip install torch torchaudio
 uv pip install --upgrade pyinstaller

@@ -10,7 +10,12 @@ Set-Location $Root
 
 Write-Host "Building YouDubPlusPlus CUDA desktop package..."
 Write-Host "PyTorch does not currently publish a cu131 pip wheel; this script uses cu128 by default."
-uv venv --python $PythonVersion .venv
+if (Test-Path ".venv") {
+    Write-Host "Using existing .venv"
+} else {
+    Write-Host "Creating .venv with Python $PythonVersion"
+    uv venv --python $PythonVersion .venv
+}
 uv pip install -r requirements-desktop-gpu.txt
 uv pip install -r $TorchRequirements
 uv pip install --upgrade pyinstaller
