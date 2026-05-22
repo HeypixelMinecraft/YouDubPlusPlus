@@ -4,6 +4,7 @@ import sys
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
+from typing import Any, Callable
 
 from ..config import REPO_ROOT, device
 
@@ -18,6 +19,26 @@ def _device() -> str:
         return "cuda" if torch.cuda.is_available() else "cpu"
     except Exception:
         return "cpu"
+
+
+def _disable_demucs_tqdm() -> None:
+    try:
+        demucs_apply = import_module("demucs.apply")
+    except Exception:
+        return
+
+    tqdm_module = getattr(demucs_apply, "tqdm", None)
+    tqdm_fn: Callable[..., Any] | None = getattr(tqdm_module, "tqdm", None)
+    if tqdm_fn is None or getattr(tqdm_fn, "_youdub_disabled", False):
+        return
+
+    def quiet_tqdm(*args: Any, **kwargs: Any) -> Any:
+        kwargs["disable"] = True
+        kwargs.setdefault("file", sys.stderr or StringIO())
+        return tqdm_fn(*args, **kwargs)
+
+    quiet_tqdm._youdub_disabled = True  # type: ignore[attr-defined]
+    tqdm_module.tqdm = quiet_tqdm
 
 
 def separate_audio(video_file: Path, session: Path) -> tuple[Path, Path]:
@@ -42,6 +63,7 @@ def separate_audio(video_file: Path, session: Path) -> tuple[Path, Path]:
                 "For a bundled desktop app, rebuild with YOUDUB_BUNDLE_GPU_DEPS=1 after installing GPU dependencies."
             ) from exc
         raise
+    _disable_demucs_tqdm()
     Separator = demucs_api.Separator
     save_audio = demucs_api.save_audio
 
