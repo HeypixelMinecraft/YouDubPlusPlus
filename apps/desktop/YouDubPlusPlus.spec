@@ -3,8 +3,13 @@
 import os
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_all, collect_submodules
+
 ROOT = Path(SPECPATH).parents[1]
 BUNDLE_GPU_DEPS = os.getenv("YOUDUB_BUNDLE_GPU_DEPS", "").lower() in {"1", "true", "yes", "on"}
+
+pyqt_datas, pyqt_binaries, pyqt_hiddenimports = collect_all("PyQt5")
+qfw_datas, qfw_binaries, qfw_hiddenimports = collect_all("qfluentwidgets")
 
 heavy_hiddenimports = []
 heavy_excludes = [
@@ -41,7 +46,7 @@ if BUNDLE_GPU_DEPS:
 a = Analysis(
     [str(ROOT / "apps" / "desktop" / "main.py")],
     pathex=[str(ROOT), str(ROOT / "apps" / "desktop")],
-    binaries=[],
+    binaries=pyqt_binaries + qfw_binaries,
     datas=[
         (str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.svg"), "assets"),
         (str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.ico"), "assets"),
@@ -49,7 +54,9 @@ a = Analysis(
         (str(ROOT / "submodule" / "demucs" / "demucs"), "submodule/demucs/demucs"),
         (str(ROOT / "submodule" / "demucs" / "conf"), "submodule/demucs/conf"),
         (str(ROOT / "submodule" / "demucs" / "README.md"), "submodule/demucs"),
-    ],
+    ]
+    + pyqt_datas
+    + qfw_datas,
     hiddenimports=[
         "backend.app.main",
         "backend.app.pipeline",
@@ -71,6 +78,10 @@ a = Analysis(
         "yt_dlp",
         "qfluentwidgets",
     ]
+    + pyqt_hiddenimports
+    + qfw_hiddenimports
+    + collect_submodules("PyQt5")
+    + collect_submodules("qfluentwidgets")
     + heavy_hiddenimports,
     hookspath=[],
     hooksconfig={},
