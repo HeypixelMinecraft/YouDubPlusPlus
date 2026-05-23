@@ -119,21 +119,8 @@ jobs:
         run: |
           & "${{ steps.python.outputs.exe }}" -m PyInstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 
-      - name: Create Windows ZIP package
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Compress-Archive -Path dist/YouDubPlusPlus/* -DestinationPath dist/YouDubPlusPlus-windows.zip -Force
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: dist/YouDubPlusPlus
-
-      - name: Upload Windows ZIP package
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: YouDubPlusPlus-windows-zip
-          path: dist/YouDubPlusPlus-windows.zip
