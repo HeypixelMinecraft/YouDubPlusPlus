@@ -122,6 +122,28 @@ def test_tts_stage_uses_configured_tts_adapter(monkeypatch, tmp_path):
     assert runner.artifacts.tts_dir == output_dir
 
 
+def test_tts_adapter_uses_saved_backend_setting(monkeypatch, tmp_path):
+    from backend.app.adapters import tts
+
+    configure_db(monkeypatch, tmp_path)
+    database.save_tts_settings("voxcpm")
+    output_dir = tmp_path / "tts"
+
+    def fake_voxcpm():
+        def generate(translation_file, vocals_dir, session):
+            output_dir.mkdir()
+            return output_dir
+
+        return generate
+
+    monkeypatch.setattr(tts, "_voxcpm", fake_voxcpm)
+
+    result, backend_name = tts.generate_tts(tmp_path / "translation.json", tmp_path / "vocals", tmp_path)
+
+    assert result == output_dir
+    assert backend_name == "VoxCPM2"
+
+
 def test_translate_stage_dispatches_openai_by_default(monkeypatch, tmp_path):
     from backend.app.adapters import translate
 

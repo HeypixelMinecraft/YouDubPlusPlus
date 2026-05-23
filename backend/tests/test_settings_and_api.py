@@ -348,6 +348,37 @@ def test_translate_settings_reject_invalid_mode(monkeypatch, tmp_path):
     assert response.status_code == 422
 
 
+def test_tts_settings_default_to_auto(monkeypatch, tmp_path):
+    configure_tmp_runtime(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    response = client.get("/api/settings/tts")
+
+    assert response.status_code == 200
+    assert response.json() == {"backend": "auto"}
+
+
+def test_tts_settings_persist_voxcpm(monkeypatch, tmp_path):
+    configure_tmp_runtime(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    saved = client.post("/api/settings/tts", json={"backend": "voxcpm"})
+    loaded = client.get("/api/settings/tts")
+
+    assert saved.status_code == 200
+    assert saved.json() == {"backend": "voxcpm"}
+    assert loaded.json() == {"backend": "voxcpm"}
+
+
+def test_tts_settings_reject_invalid_backend(monkeypatch, tmp_path):
+    configure_tmp_runtime(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    response = client.post("/api/settings/tts", json={"backend": "bad"})
+
+    assert response.status_code == 422
+
+
 def test_resume_task_requeues_failed_task(monkeypatch, tmp_path):
     configure_tmp_runtime(monkeypatch, tmp_path)
     enqueued: list[str] = []

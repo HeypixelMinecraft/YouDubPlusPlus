@@ -10,7 +10,12 @@ VALID_BACKENDS = {"auto", "index_tts", "voxcpm"}
 
 
 def _backend() -> str:
-    value = os.getenv("TTS_BACKEND", "auto").strip().lower().replace("-", "_")
+    try:
+        from .. import database
+
+        value = database.get_tts_settings()["backend"]
+    except Exception:
+        value = os.getenv("TTS_BACKEND", "auto").strip().lower().replace("-", "_")
     if value not in VALID_BACKENDS:
         raise ValueError("TTS_BACKEND must be one of: auto, index_tts, voxcpm")
     return value

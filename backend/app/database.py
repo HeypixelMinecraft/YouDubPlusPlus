@@ -6,12 +6,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .config import DB_PATH, ensure_runtime_dirs, openai_defaults, translate_defaults, ytdlp_defaults
+from .config import DB_PATH, ensure_runtime_dirs, openai_defaults, translate_defaults, tts_defaults, ytdlp_defaults
 from .stages import STAGES
 
 
 ACTIVE_STATUSES = ("queued", "running")
 TRANSLATE_MODES = {"openai", "google"}
+TTS_BACKENDS = {"auto", "index_tts", "voxcpm"}
 
 
 def now_iso() -> str:
@@ -78,6 +79,11 @@ def init_db() -> None:
             conn.execute(
                 "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
                 (f"translate.{key}", _normalize_translate_mode(value), now_iso()),
+            )
+        for key, value in tts_defaults().items():
+            conn.execute(
+                "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+                (f"tts.{key}", _normalize_tts_backend(value), now_iso()),
             )
         existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
         if "title" not in existing_columns:
@@ -304,6 +310,26 @@ def get_translate_settings() -> dict[str, str]:
 
 def save_translate_settings(mode: str) -> None:
     set_setting("translate.mode", _normalize_translate_mode(mode))
+
+
+def _normalize_tts_backend(backend: str) -> str:
+    cleaned = (backend or "").strip().lower().replace("-", "_") or "auto"
+    if cleaned not in TTS_BACKENDS:
+        raise ValueError("TTS backend must be one of: auto, index_tts, voxcpm.")
+    return cleaned
+
+
+def get_tts_settings() -> dict[str, str]:
+    defaults = tts_defaults()
+    try:
+        backend = _normalize_tts_backend(get_setting("tts.backend", defaults["backend"]))
+    except ValueError:
+        backend = "auto"
+    return {"backend": backend}
+
+
+def save_tts_settings(backend: str) -> None:
+    set_setting("tts.backend", _normalize_tts_backend(backend))
 
 
 def get_openai_settings() -> dict[str, str]:

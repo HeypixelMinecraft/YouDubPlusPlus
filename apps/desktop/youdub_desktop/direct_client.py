@@ -157,6 +157,16 @@ class DirectClient:
             raise RuntimeError(str(exc)) from exc
         return self.get_translate_settings()
 
+    def get_tts_settings(self) -> dict[str, Any]:
+        return database.get_tts_settings()
+
+    def save_tts_settings(self, backend: str) -> dict[str, Any]:
+        try:
+            database.save_tts_settings(backend)
+        except ValueError as exc:
+            raise RuntimeError(str(exc)) from exc
+        return self.get_tts_settings()
+
     def get_ytdlp_settings(self) -> dict[str, Any]:
         return database.get_ytdlp_settings()
 
