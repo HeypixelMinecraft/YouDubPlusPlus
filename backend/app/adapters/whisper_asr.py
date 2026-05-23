@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from importlib import import_module
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterator
 from urllib.parse import urlparse
 
 from pydub import AudioSegment
@@ -66,6 +67,58 @@ def _load_model(log: LogFn | None = None):
     return _MODEL
 
 
+@contextmanager
+def _whisper_progress_logger(log: LogFn | None) -> Iterator[None]:
+    if log is None:
+        yield
+        return
+
+    try:
+        transcribe_module = import_module("whisper.transcribe")
+        tqdm_module = getattr(transcribe_module, "tqdm", None)
+        original_tqdm = getattr(tqdm_module, "tqdm", None)
+    except Exception:
+        yield
+        return
+
+    if original_tqdm is None:
+        yield
+        return
+
+    class LogTqdm:
+        def __init__(self, *args, **kwargs):
+            self.total = int(kwargs.get("total") or 0)
+            self.n = 0
+            self.last_percent = -1
+
+        def __enter__(self):
+            log("Whisper transcription progress: 0%")
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            if exc_type is None and self.last_percent < 100:
+                log("Whisper transcription progress: 100%")
+            return False
+
+        def __iter__(self):
+            return iter(())
+
+        def update(self, value: int | float = 1) -> None:
+            self.n += int(value)
+            if self.total <= 0:
+                return
+            percent = min(100, int(self.n / self.total * 100))
+            if percent >= self.last_percent + 5 or percent == 100:
+                self.last_percent = percent
+                log(f"Whisper transcription progress: {percent}%")
+
+    tqdm_module.tqdm = LogTqdm
+    try:
+        yield
+    finally:
+        tqdm_module.tqdm = original_tqdm
+
+
 def _to_ms(seconds: float) -> int:
     return int(round(float(seconds) * 1000))
 
@@ -109,12 +162,13 @@ def recognize_speech(vocals_file: Path, session: Path, language: str, log: LogFn
     model = _load_model(log)
     if log:
         log("Whisper transcription started")
-    result = model.transcribe(
-        str(vocals_file),
-        language=language,
-        word_timestamps=True,
-        verbose=False,
-    )
+    with _whisper_progress_logger(log):
+        result = model.transcribe(
+            str(vocals_file),
+            language=language,
+            word_timestamps=True,
+            verbose=False,
+        )
     if log:
         log("Whisper transcription finished; converting segments")
 
