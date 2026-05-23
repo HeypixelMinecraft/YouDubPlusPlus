@@ -53,6 +53,14 @@ def test_subtitle_filter_picks_chinese_font_for_zh_srt(monkeypatch, tmp_path):
     assert "FontName=Arial" in ffmpeg.subtitle_filter(tmp_path / "v.mp4", sub_en)
 
 
+def test_subtitle_filter_escapes_windows_drive_colon(monkeypatch):
+    monkeypatch.setattr(ffmpeg, "get_video_orientation", lambda _: "landscape")
+
+    filter_arg = ffmpeg.subtitle_filter(Path("D:/video.mp4"), Path("D:/work/subtitles.zh.srt"))
+
+    assert "filename='D\\:/work/subtitles.zh.srt'" in filter_arg
+
+
 def test_merge_video_burns_portrait_subtitles(monkeypatch, tmp_path):
     session = tmp_path / "session"
     metadata_dir = session / "metadata"
@@ -100,6 +108,22 @@ def test_merge_video_burns_portrait_subtitles(monkeypatch, tmp_path):
     assert "FontSize=12" in filter_arg
     assert "MarginV=70" in filter_arg
     assert "-c:s" not in final_command
+
+
+def test_run_ffmpeg_raises_with_stderr(monkeypatch):
+    command = ["ffmpeg", "-bad"]
+
+    def fake_run(cmd, capture_output=False, text=False, **kwargs):
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="bad filter syntax")
+
+    monkeypatch.setattr(ffmpeg.subprocess, "run", fake_run)
+
+    try:
+        ffmpeg._run_ffmpeg(command)
+    except RuntimeError as exc:
+        assert "bad filter syntax" in str(exc)
+    else:
+        raise AssertionError("_run_ffmpeg should fail")
 
 
 def test_split_subtitle_text_breaks_on_punctuation_and_keeps_protected():

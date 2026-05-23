@@ -232,12 +232,30 @@ def subtitle_style_for_orientation(orientation: str, font: str, lang: str = "zh"
     return _subtitle_style(font, size=sizes[orientation], margin_v=margin_v)
 
 
+def _escape_subtitles_path(path: Path) -> str:
+    escaped = path.as_posix()
+    escaped = escaped.replace("\\", "/")
+    escaped = escaped.replace("'", r"\'")
+    escaped = escaped.replace(":", r"\:")
+    return escaped
+
+
 def subtitle_filter(video_file: Path, subtitle_file: Path) -> str:
     lang = subtitle_file.stem.rsplit(".", 1)[-1]
     font = SUBTITLE_FONTS.get(lang, "Arial")
     style = subtitle_style_for_orientation(get_video_orientation(video_file), font, lang)
-    sub_path = subtitle_file.as_posix()
+    sub_path = _escape_subtitles_path(subtitle_file)
     return f"subtitles=filename='{sub_path}':force_style='{style}'"
+
+
+def _run_ffmpeg(command: list[str]) -> None:
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode == 0:
+        return
+    stderr = (result.stderr or "").strip()
+    stdout = (result.stdout or "").strip()
+    details = stderr or stdout or "ffmpeg exited without output."
+    raise RuntimeError(f"FFmpeg command failed with exit code {result.returncode}:\n{details}")
 
 
 def merge_video(video_file: Path, dubbing_file: Path, bgm_file: Path, timings_file: Path, session: Path) -> Path:
@@ -251,7 +269,7 @@ def merge_video(video_file: Path, dubbing_file: Path, bgm_file: Path, timings_fi
 
     subtitles = write_srt(timings_file, session)
     mixed_audio = tmp_dir / "audio_mixed.m4a"
-    subprocess.run(
+    _run_ffmpeg(
         [
             ffmpeg_binary(),
             "-y",
@@ -266,10 +284,9 @@ def merge_video(video_file: Path, dubbing_file: Path, bgm_file: Path, timings_fi
             "-c:a",
             "aac",
             str(mixed_audio),
-        ],
-        check=True,
+        ]
     )
-    subprocess.run(
+    _run_ffmpeg(
         [
             ffmpeg_binary(),
             "-y",
@@ -295,7 +312,6 @@ def merge_video(video_file: Path, dubbing_file: Path, bgm_file: Path, timings_fi
             "+faststart",
             "-shortest",
             str(final_video),
-        ],
-        check=True,
+        ]
     )
     return final_video
