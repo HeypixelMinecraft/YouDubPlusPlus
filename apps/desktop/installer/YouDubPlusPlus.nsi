@@ -16,6 +16,10 @@ ManifestDPIAware true
   !define OUTPUT "dist\YouDubPlusPlus-Setup.exe"
 !endif
 
+!ifndef ROOT
+  !define ROOT "..\..\.."
+!endif
+
 !define APP_NAME "YouDubPlusPlus"
 !define APP_EXE "YouDubPlusPlus.exe"
 !define COMPANY_NAME "YouDubPlusPlus"
@@ -26,8 +30,8 @@ InstallDir "$PROGRAMFILES64\${APP_NAME}"
 InstallDirRegKey HKLM "Software\${APP_NAME}" "InstallDir"
 RequestExecutionLevel admin
 
-!define MUI_ICON "apps\desktop\assets\youdub-icon.ico"
-!define MUI_UNICON "apps\desktop\assets\youdub-icon.ico"
+!define MUI_ICON "${ROOT}\apps\desktop\assets\youdub-icon.ico"
+!define MUI_UNICON "${ROOT}\apps\desktop\assets\youdub-icon.ico"
 !define MUI_ABORTWARNING
 
 !insertmacro MUI_PAGE_WELCOME
@@ -50,7 +54,7 @@ VIAddVersionKey "ProductVersion" "${DISPLAY_VERSION}"
 Section "Install"
   SetShellVarContext all
   SetOutPath "$INSTDIR"
-  File /r "dist\YouDubPlusPlus\*.*"
+  File /r "${ROOT}\dist\YouDubPlusPlus\*.*"
 
   WriteRegStr HKLM "Software\${APP_NAME}" "InstallDir" "$INSTDIR"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayName" "${APP_NAME}"
