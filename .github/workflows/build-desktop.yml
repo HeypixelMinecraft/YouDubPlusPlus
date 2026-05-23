@@ -119,8 +119,43 @@ jobs:
         run: |
           & "${{ steps.python.outputs.exe }}" -m PyInstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 
+      - name: Create Windows ZIP package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/YouDubPlusPlus/* -DestinationPath dist/YouDubPlusPlus-windows.zip -Force
+
+      - name: Install NSIS
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nsis -y
+
+      - name: Build Windows NSIS installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $displayVersion = if ($env:GITHUB_REF_TYPE -eq "tag") { $env:GITHUB_REF_NAME.TrimStart("v") } else { "0.0.$env:GITHUB_RUN_NUMBER" }
+          $installerVersion = if ($displayVersion -match '^\d+\.\d+\.\d+$') { $displayVersion } else { "0.0.$env:GITHUB_RUN_NUMBER" }
+          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
+          & $makensis "/DVERSION=$installerVersion" "/DDISPLAY_VERSION=$displayVersion" "/DOUTPUT=dist\YouDubPlusPlus-windows-setup.exe" apps/desktop/installer/YouDubPlusPlus.nsi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: dist/YouDubPlusPlus
+
+      - name: Upload Windows ZIP package
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouDubPlusPlus-windows-zip
+          path: dist/YouDubPlusPlus-windows.zip
+
+      - name: Upload Windows NSIS installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouDubPlusPlus-windows-nsis
+          path: dist/YouDubPlusPlus-windows-setup.exe
