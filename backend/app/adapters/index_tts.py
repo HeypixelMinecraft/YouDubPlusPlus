@@ -4,19 +4,21 @@ import json
 import os
 from importlib import import_module
 from pathlib import Path
+from typing import Callable
 
 from pydub import AudioSegment
 
 
 _TTS = None
 _TTS_API = ""
+LogFn = Callable[[str], None]
 
 
 def _truthy(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-def _download_checkpoints(model_dir: Path) -> None:
+def _download_checkpoints(model_dir: Path, log: LogFn | None = None) -> None:
     """
     Best-effort checkpoint downloader.
 
@@ -26,9 +28,13 @@ def _download_checkpoints(model_dir: Path) -> None:
     model_id = os.getenv("INDEXTTS_MODEL_ID", "").strip()
     source = os.getenv("INDEXTTS_MODEL_SOURCE", "").strip().lower()
     if not model_id or not source:
+        if log:
+            log("IndexTTS auto-download skipped: INDEXTTS_MODEL_SOURCE or INDEXTTS_MODEL_ID is empty")
         return
 
     model_dir.mkdir(parents=True, exist_ok=True)
+    if log:
+        log(f"Downloading IndexTTS checkpoints from {source}: {model_id} -> {model_dir}")
 
     if source in {"modelscope", "ms"}:
         snapshot_download = import_module("modelscope").snapshot_download
@@ -49,19 +55,23 @@ def _download_checkpoints(model_dir: Path) -> None:
     raise ValueError("INDEXTTS_MODEL_SOURCE must be one of: modelscope|huggingface")
 
 
-def _load_tts():
+def _load_tts(log: LogFn | None = None):
     global _TTS, _TTS_API
     if _TTS is not None:
+        if log:
+            log(f"IndexTTS model already loaded; reusing API {_TTS_API}")
         return _TTS
 
     model_dir_raw = os.getenv("INDEXTTS_MODEL_DIR", "").strip() or "checkpoints"
     model_dir = Path(model_dir_raw).expanduser()
     cfg_path_raw = os.getenv("INDEXTTS_CFG_PATH", "").strip()
     cfg_path = Path(cfg_path_raw).expanduser() if cfg_path_raw else model_dir / "config.yaml"
+    if log:
+        log(f"IndexTTS model_dir={model_dir}, cfg_path={cfg_path}")
 
     if not model_dir.exists():
         if _truthy(os.getenv("INDEXTTS_AUTO_DOWNLOAD", "true")):
-            _download_checkpoints(model_dir)
+            _download_checkpoints(model_dir, log)
 
     if not model_dir.exists():
         raise FileNotFoundError(
@@ -82,6 +92,13 @@ def _load_tts():
 
     try:
         IndexTTS2 = import_module("indextts.infer_v2").IndexTTS2
+        if log:
+            log(
+                "Loading IndexTTS v2 "
+                f"(fp16={_truthy(os.getenv('INDEXTTS_USE_FP16', 'false'))}, "
+                f"cuda_kernel={_truthy(os.getenv('INDEXTTS_USE_CUDA_KERNEL', 'false'))}, "
+                f"deepspeed={_truthy(os.getenv('INDEXTTS_USE_DEEPSPEED', 'false'))})"
+            )
 
         _TTS = IndexTTS2(
             cfg_path=str(cfg_path),
@@ -91,6 +108,8 @@ def _load_tts():
             use_deepspeed=_truthy(os.getenv("INDEXTTS_USE_DEEPSPEED", "false")),
         )
         _TTS_API = "v2"
+        if log:
+            log("IndexTTS v2 loaded")
         return _TTS
     except ModuleNotFoundError:
         pass
@@ -101,9 +120,13 @@ def _load_tts():
     try:
         # Fallback to IndexTTS v1 API (no extra flags).
         IndexTTS = import_module("indextts.infer").IndexTTS
+        if log:
+            log("Loading IndexTTS v1")
 
         _TTS = IndexTTS(model_dir=str(model_dir), cfg_path=str(cfg_path))
         _TTS_API = "v1"
+        if log:
+            log("IndexTTS v1 loaded")
         return _TTS
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
@@ -122,7 +145,7 @@ def _fallback_reference(vocals_dir: Path, min_ms: int) -> Path:
     return files[0]
 
 
-def generate_tts(translation_file: Path, vocals_dir: Path, session: Path) -> Path:
+def generate_tts(translation_file: Path, vocals_dir: Path, session: Path, log: LogFn | None = None) -> Path:
     """
     Generate one wav per translated sentence.
 
@@ -133,10 +156,13 @@ def generate_tts(translation_file: Path, vocals_dir: Path, session: Path) -> Pat
     output_dir.mkdir(parents=True, exist_ok=True)
 
     data = json.loads(translation_file.read_text(encoding="utf-8"))
-    tts = _load_tts()
+    tts = _load_tts(log)
+    total = len(data["translation"])
 
     min_reference_ms = int(os.getenv("INDEXTTS_MIN_REFERENCE_MS", "1200"))
     fallback = _fallback_reference(vocals_dir, min_reference_ms)
+    if log:
+        log(f"IndexTTS segments={total}, min_reference_ms={min_reference_ms}, fallback_reference={fallback.name}")
 
     emo_audio_prompt = os.getenv("INDEXTTS_EMO_AUDIO_PROMPT", "").strip()
     emo_alpha_raw = os.getenv("INDEXTTS_EMO_ALPHA", "").strip()
@@ -147,6 +173,8 @@ def generate_tts(translation_file: Path, vocals_dir: Path, session: Path) -> Pat
     for index, item in enumerate(data["translation"], start=1):
         output_file = output_dir / f"{index:04d}.wav"
         if output_file.exists():
+            if log and (index == 1 or index == total or index % 25 == 0):
+                log(f"IndexTTS [{index}/{total}] reused {output_file.name}")
             continue
 
         reference = vocals_dir / f"{index:04d}.wav"
@@ -179,6 +207,8 @@ def generate_tts(translation_file: Path, vocals_dir: Path, session: Path) -> Pat
             tts.infer(str(reference), text, str(output_file))
         else:
             tts.infer(**kwargs)
+        if log and (index == 1 or index == total or index % 10 == 0):
+            log(f"IndexTTS [{index}/{total}] wrote {output_file.name} using {reference.name}")
 
     return output_dir
 

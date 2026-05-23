@@ -6,6 +6,7 @@ from typing import Callable
 
 
 GenerateTts = Callable[[Path, Path, Path], Path]
+LogFn = Callable[[str], None]
 VALID_BACKENDS = {"auto", "index_tts", "voxcpm"}
 
 
@@ -33,7 +34,12 @@ def _voxcpm() -> GenerateTts:
     return generate_tts
 
 
-def generate_tts(translation_file: Path, vocals_dir: Path, session: Path) -> tuple[Path, str]:
+def generate_tts(
+    translation_file: Path,
+    vocals_dir: Path,
+    session: Path,
+    log: LogFn | None = None,
+) -> tuple[Path, str]:
     """
     Generate TTS clips and return the output directory plus backend name.
 
@@ -42,14 +48,25 @@ def generate_tts(translation_file: Path, vocals_dir: Path, session: Path) -> tup
     specific backend and surface its error directly.
     """
     backend = _backend()
+    if log:
+        log(f"TTS backend setting: {backend}")
     if backend == "index_tts":
+        if log:
+            log("Generating TTS with IndexTTS")
         return _index_tts()(translation_file, vocals_dir, session), "IndexTTS"
     if backend == "voxcpm":
+        if log:
+            log("Generating TTS with VoxCPM2")
         return _voxcpm()(translation_file, vocals_dir, session), "VoxCPM2"
 
     try:
+        if log:
+            log("Trying IndexTTS first")
         return _index_tts()(translation_file, vocals_dir, session), "IndexTTS"
     except Exception as index_error:  # noqa: BLE001 - preserve fallback behavior for local model setup failures.
+        if log:
+            log(f"IndexTTS failed: {index_error}")
+            log("Falling back to VoxCPM2")
         try:
             return _voxcpm()(translation_file, vocals_dir, session), "VoxCPM2"
         except Exception as voxcpm_error:  # noqa: BLE001

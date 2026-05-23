@@ -4,6 +4,7 @@ import json
 import re
 import subprocess
 from pathlib import Path
+from typing import Callable
 
 from ..config import ffmpeg_binary, ffprobe_binary, media_subprocess_creationflags
 
@@ -25,6 +26,7 @@ SUBTITLE_FONT_SIZES = {
     "zh": {"portrait": 12, "landscape": 24},
     "en": {"portrait": 9, "landscape": 18},
 }
+LogFn = Callable[[str], None]
 
 
 def _subtitle_style(font: str, size: int, margin_v: int) -> str:
@@ -249,7 +251,13 @@ def subtitle_filter(video_file: Path, subtitle_file: Path) -> str:
     return f"subtitles=filename='{sub_path}':force_style='{style}'"
 
 
-def _run_ffmpeg(command: list[str]) -> None:
+def _format_command(command: list[str]) -> str:
+    return " ".join(command)
+
+
+def _run_ffmpeg(command: list[str], log: LogFn | None = None) -> None:
+    if log:
+        log(f"Running: {_format_command(command)}")
     result = subprocess.run(
         command,
         capture_output=True,
@@ -257,6 +265,10 @@ def _run_ffmpeg(command: list[str]) -> None:
         creationflags=media_subprocess_creationflags(),
     )
     if result.returncode == 0:
+        if log:
+            stderr_tail = (result.stderr or "").strip().splitlines()[-5:]
+            if stderr_tail:
+                log("FFmpeg output:\n" + "\n".join(stderr_tail))
         return
     stderr = (result.stderr or "").strip()
     stdout = (result.stdout or "").strip()
@@ -264,7 +276,14 @@ def _run_ffmpeg(command: list[str]) -> None:
     raise RuntimeError(f"FFmpeg command failed with exit code {result.returncode}:\n{details}")
 
 
-def merge_video(video_file: Path, dubbing_file: Path, bgm_file: Path, timings_file: Path, session: Path) -> Path:
+def merge_video(
+    video_file: Path,
+    dubbing_file: Path,
+    bgm_file: Path,
+    timings_file: Path,
+    session: Path,
+    log: LogFn | None = None,
+) -> Path:
     tmp_dir = session / "tmp"
     media_dir = session / "media"
     tmp_dir.mkdir(parents=True, exist_ok=True)
@@ -275,6 +294,9 @@ def merge_video(video_file: Path, dubbing_file: Path, bgm_file: Path, timings_fi
 
     subtitles = write_srt(timings_file, session)
     mixed_audio = tmp_dir / "audio_mixed.m4a"
+    if log:
+        log(f"Subtitle file: {subtitles}")
+        log(f"Mixing audio: dubbing={dubbing_file}, bgm={bgm_file}, output={mixed_audio}")
     _run_ffmpeg(
         [
             ffmpeg_binary(),
@@ -290,8 +312,11 @@ def merge_video(video_file: Path, dubbing_file: Path, bgm_file: Path, timings_fi
             "-c:a",
             "aac",
             str(mixed_audio),
-        ]
+        ],
+        log,
     )
+    if log:
+        log(f"Burning subtitles and muxing final video: {final_video}")
     _run_ffmpeg(
         [
             ffmpeg_binary(),
@@ -318,6 +343,7 @@ def merge_video(video_file: Path, dubbing_file: Path, bgm_file: Path, timings_fi
             "+faststart",
             "-shortest",
             str(final_video),
-        ]
+        ],
+        log,
     )
     return final_video

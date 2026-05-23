@@ -4,6 +4,7 @@ import json
 import os
 from importlib import import_module
 from pathlib import Path
+from typing import Callable
 from urllib.parse import urlparse
 
 from pydub import AudioSegment
@@ -11,6 +12,7 @@ from pydub import AudioSegment
 from ..config import device
 
 _MODEL = None
+LogFn = Callable[[str], None]
 
 
 def _whisper_cache_file(whisper, name: str, download_root: str | None) -> Path | None:
@@ -37,15 +39,19 @@ def _remove_corrupt_whisper_cache(whisper, name: str, download_root: str | None)
     return True
 
 
-def _load_model():
+def _load_model(log: LogFn | None = None):
     global _MODEL
     if _MODEL is not None:
+        if log:
+            log("Whisper model already loaded; reusing cached model")
         return _MODEL
 
     whisper = import_module("whisper")
 
     name = os.getenv("WHISPER_MODEL", "large-v3-turbo")
     download_root = os.getenv("WHISPER_DOWNLOAD_ROOT") or None
+    if log:
+        log(f"Loading Whisper model '{name}' on {device()}")
     try:
         _MODEL = whisper.load_model(name, device=device(), download_root=download_root)
     except RuntimeError as exc:
@@ -53,6 +59,8 @@ def _load_model():
             raise
         if not _remove_corrupt_whisper_cache(whisper, name, download_root):
             raise
+        if log:
+            log("Removed corrupt Whisper model cache; retrying download/load")
         _MODEL = whisper.load_model(name, device=device(), download_root=download_root)
 
     return _MODEL
@@ -85,20 +93,30 @@ def _convert_segments(segments: list) -> list:
     ]
 
 
-def recognize_speech(vocals_file: Path, session: Path, language: str) -> Path:
+def recognize_speech(vocals_file: Path, session: Path, language: str, log: LogFn | None = None) -> Path:
     metadata_dir = session / "metadata"
     metadata_dir.mkdir(parents=True, exist_ok=True)
     output_file = metadata_dir / "asr.json"
     if output_file.exists():
+        if log:
+            log(f"Whisper output already exists: {output_file}")
         return output_file
 
-    model = _load_model()
+    if log:
+        duration_ms = len(AudioSegment.from_file(vocals_file))
+        size_mb = vocals_file.stat().st_size / (1024 * 1024)
+        log(f"Whisper input: {vocals_file} ({duration_ms / 1000:.1f}s, {size_mb:.1f} MB), language={language}")
+    model = _load_model(log)
+    if log:
+        log("Whisper transcription started")
     result = model.transcribe(
         str(vocals_file),
         language=language,
         word_timestamps=True,
         verbose=False,
     )
+    if log:
+        log("Whisper transcription finished; converting segments")
 
     utterances = _convert_segments(result.get("segments", []))
     if not utterances:
@@ -113,4 +131,7 @@ def recognize_speech(vocals_file: Path, session: Path, language: str) -> Path:
         },
     }
     output_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    if log:
+        word_count = sum(len(u.get("words") or []) for u in utterances)
+        log(f"Whisper wrote {len(utterances)} segments / {word_count} words -> {output_file}")
     return output_file

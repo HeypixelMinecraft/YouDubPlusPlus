@@ -135,6 +135,20 @@ def test_run_ffmpeg_raises_with_stderr(monkeypatch):
     assert seen["creationflags"] == 123
 
 
+def test_run_ffmpeg_logs_command_and_tail(monkeypatch):
+    messages: list[str] = []
+
+    def fake_run(cmd, capture_output=False, text=False, **kwargs):
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="a\nb\nc")
+
+    monkeypatch.setattr(ffmpeg.subprocess, "run", fake_run)
+
+    ffmpeg._run_ffmpeg(["ffmpeg", "-version"], log=messages.append)
+
+    assert messages[0] == "Running: ffmpeg -version"
+    assert messages[1] == "FFmpeg output:\na\nb\nc"
+
+
 def test_split_subtitle_text_breaks_on_punctuation_and_keeps_protected():
     out = ffmpeg.split_subtitle_text("我们今天讨论一下宇宙的边界，那是一个神秘话题；不过别担心，我会详细解释。")
     assert len(out) >= 3

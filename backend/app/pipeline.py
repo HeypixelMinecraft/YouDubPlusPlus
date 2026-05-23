@@ -170,7 +170,12 @@ class PipelineRunner:
         session = _require(self.artifacts.session, "session")
         vocals_file = _require(self.artifacts.vocals_file, "vocals_file")
         source = detect_source(task["url"])
-        self.artifacts.asr_file = recognize_speech(vocals_file, session, language=source.asr_language)
+        self.artifacts.asr_file = recognize_speech(
+            vocals_file,
+            session,
+            language=source.asr_language,
+            log=lambda message: self.stage_message("asr", message),
+        )
         data = _json.loads(self.artifacts.asr_file.read_text(encoding="utf-8"))
         utterances = data["result"]["utterances"]
         word_count = sum(len(u.get("words") or []) for u in utterances)
@@ -238,7 +243,12 @@ class PipelineRunner:
         session = _require(self.artifacts.session, "session")
         translation_file = _require(self.artifacts.translation_file, "translation_file")
         vocals_dir = _require(self.artifacts.vocals_dir, "vocals_dir")
-        self.artifacts.tts_dir, backend_name = generate_tts(translation_file, vocals_dir, session)
+        self.artifacts.tts_dir, backend_name = generate_tts(
+            translation_file,
+            vocals_dir,
+            session,
+            log=lambda message: self.stage_message("tts", message),
+        )
         wav_count = len(list(self.artifacts.tts_dir.glob("*.wav")))
         self.stage_message("tts", f"[{backend_name}] Generated {wav_count} TTS clips -> {self.artifacts.tts_dir}")
 
@@ -261,7 +271,14 @@ class PipelineRunner:
         dubbing_file = _require(self.artifacts.dubbing_file, "dubbing_file")
         bgm_file = _require(self.artifacts.bgm_file, "bgm_file")
         timings_file = _require(self.artifacts.timings_file, "timings_file")
-        self.artifacts.final_video = merge_video(video_file, dubbing_file, bgm_file, timings_file, session)
+        self.artifacts.final_video = merge_video(
+            video_file,
+            dubbing_file,
+            bgm_file,
+            timings_file,
+            session,
+            log=lambda message: self.stage_message("merge_video", message),
+        )
         size_mb = self.artifacts.final_video.stat().st_size / (1024 * 1024)
         self.stage_message("merge_video", f"Final video: {self.artifacts.final_video} ({size_mb:.1f} MB)")
 

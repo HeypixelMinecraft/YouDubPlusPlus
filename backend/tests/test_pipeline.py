@@ -104,8 +104,10 @@ def test_tts_stage_uses_configured_tts_adapter(monkeypatch, tmp_path):
     output_dir = tmp_path / "segments" / "tts"
     called = {}
 
-    def fake_generate_tts(translation_file, vocals_dir, session):
+    def fake_generate_tts(translation_file, vocals_dir, session, log=None):
         called["args"] = (translation_file, vocals_dir, session)
+        if log:
+            log("fake tts detail")
         output_dir.mkdir(parents=True)
         (output_dir / "0001.wav").write_bytes(b"wav")
         return output_dir, "FakeTTS"
@@ -120,6 +122,9 @@ def test_tts_stage_uses_configured_tts_adapter(monkeypatch, tmp_path):
         runner.artifacts.session,
     )
     assert runner.artifacts.tts_dir == output_dir
+    task = database.get_task(task_id)
+    tts_stage = next(stage for stage in task["stages"] if stage["name"] == "tts")
+    assert tts_stage["last_message"] == "[FakeTTS] Generated 1 TTS clips -> " + str(output_dir)
 
 
 def test_tts_adapter_uses_saved_backend_setting(monkeypatch, tmp_path):
