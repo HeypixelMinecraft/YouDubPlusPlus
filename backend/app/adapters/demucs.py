@@ -60,7 +60,34 @@ def _disable_demucs_progress(demucs_api: Any) -> None:
     demucs_api.apply_model = quiet_apply_model
 
 
-def separate_audio(video_file: Path, session: Path) -> tuple[Path, Path]:
+def _progress_logger(log: Callable[[str], None] | None, shifts: int) -> Callable[[dict], None] | None:
+    if log is None:
+        return None
+
+    state = {"last": -1}
+
+    def callback(progress: dict) -> None:
+        if progress.get("state") != "end":
+            return
+        audio_length = int(progress.get("audio_length") or 0)
+        if audio_length <= 0:
+            return
+        models = max(1, int(progress.get("models") or 1))
+        model_idx = int(progress.get("model_idx_in_bag") or 0)
+        shift_idx = int(progress.get("shift_idx") or 0)
+        offset = int(progress.get("segment_offset") or 0)
+        chunk_ratio = min(1.0, max(0.0, offset / audio_length))
+        total_steps = models * max(1, shifts)
+        current_step = model_idx * max(1, shifts) + shift_idx + chunk_ratio
+        percent = min(99, int(current_step / total_steps * 100))
+        if percent >= state["last"] + 5:
+            state["last"] = percent
+            log(f"Demucs separation progress: {percent}%")
+
+    return callback
+
+
+def separate_audio(video_file: Path, session: Path, log: Callable[[str], None] | None = None) -> tuple[Path, Path]:
     _ensure_console_streams()
 
     demucs_path = REPO_ROOT / "submodule" / "demucs"
@@ -89,7 +116,18 @@ def separate_audio(video_file: Path, session: Path) -> tuple[Path, Path]:
     if vocals_file.exists() and bgm_file.exists():
         return vocals_file, bgm_file
 
-    separator = Separator(model="htdemucs_ft", device=_device(), progress=False, shifts=3)
+    selected_device = _device()
+    shifts = 3
+    if log:
+        log(f"Running Demucs htdemucs_ft on {selected_device} with {shifts} shifts")
+    separator = Separator(
+        model="htdemucs_ft",
+        device=selected_device,
+        progress=False,
+        shifts=shifts,
+        callback=_progress_logger(log, shifts),
+        callback_arg={"shifts": shifts},
+    )
     _, separated = separator.separate_audio_file(str(video_file))
 
     vocals = separated["vocals"]
@@ -99,6 +137,8 @@ def separate_audio(video_file: Path, session: Path) -> tuple[Path, Path]:
             continue
         bgm = source if bgm is None else bgm + source
 
+    if log:
+        log("Saving separated audio stems")
     save_audio(vocals, str(vocals_file), samplerate=separator.samplerate)
     save_audio(bgm, str(bgm_file), samplerate=separator.samplerate)
     return vocals_file, bgm_file

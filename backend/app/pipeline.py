@@ -160,7 +160,11 @@ class PipelineRunner:
 
         session = _require(self.artifacts.session, "session")
         video_file = _require(self.artifacts.video_file, "video_file")
-        self.artifacts.vocals_file, self.artifacts.bgm_file = separate_audio(video_file, session)
+        self.artifacts.vocals_file, self.artifacts.bgm_file = separate_audio(
+            video_file,
+            session,
+            log=lambda message: self.stage_message("separate", message),
+        )
         self.stage_message("separate", f"Vocals: {self.artifacts.vocals_file.name}, BGM: {self.artifacts.bgm_file.name}")
 
     def _asr(self, task: dict) -> None:
