@@ -110,6 +110,9 @@ a = Analysis(
     runtime_hooks=[],
     excludes=heavy_excludes,
     noarchive=False,
+    module_collection_mode={
+        "voxcpm": "pyz+py",
+    },
     optimize=0,
 )
 pyz = PYZ(a.pure)
