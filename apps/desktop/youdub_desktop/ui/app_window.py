@@ -239,6 +239,7 @@ class AppWindow(FluentWindow):
         self.translation_mode_combo.addItem("OpenAI", userData="openai")
         self.translation_mode_combo.addItem("Google Translate", userData="google")
         self.translation_mode_combo.addItem("Youdao Translate", userData="youdao")
+        self.translation_mode_combo.currentIndexChanged.connect(self._update_translation_settings_visibility)
         self.tts_backend_combo = ComboBox()
         self.tts_backend_combo.addItem("Auto", userData="auto")
         self.tts_backend_combo.addItem("IndexTTS", userData="index_tts")
@@ -255,6 +256,17 @@ class AppWindow(FluentWindow):
         save_button = PrimaryPushButton(self._t("Save settings"))
         save_button.setIcon(FIF.SAVE)
         save_button.clicked.connect(self.save_settings)
+        self.openai_setting_widgets = [
+            StrongBodyLabel(self._t("OpenAI base URL")),
+            StrongBodyLabel(self._t("OpenAI API key")),
+            StrongBodyLabel(self._t("Model")),
+            self.base_url_input,
+            self.api_key_input,
+            self.model_input,
+            self.models_combo,
+            load_button,
+        ]
+        openai_base_label, openai_key_label, openai_model_label = self.openai_setting_widgets[:3]
 
         grid.addWidget(StrongBodyLabel(self._t("Interface language")), 0, 0)
         grid.addWidget(self.language_combo, 0, 1)
@@ -268,17 +280,18 @@ class AppWindow(FluentWindow):
         grid.addWidget(self.translation_mode_combo, 4, 1)
         grid.addWidget(StrongBodyLabel(self._t("TTS backend")), 5, 0)
         grid.addWidget(self.tts_backend_combo, 5, 1)
-        grid.addWidget(StrongBodyLabel(self._t("OpenAI base URL")), 6, 0)
+        grid.addWidget(openai_base_label, 6, 0)
         grid.addWidget(self.base_url_input, 6, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel(self._t("OpenAI API key")), 7, 0)
+        grid.addWidget(openai_key_label, 7, 0)
         grid.addWidget(self.api_key_input, 7, 1, 1, 3)
-        grid.addWidget(StrongBodyLabel(self._t("Model")), 8, 0)
+        grid.addWidget(openai_model_label, 8, 0)
         grid.addWidget(self.model_input, 8, 1)
         grid.addWidget(self.models_combo, 8, 2)
         grid.addWidget(load_button, 8, 3)
         grid.addWidget(StrongBodyLabel(self._t("Translate concurrency")), 9, 0)
         grid.addWidget(self.concurrency_input, 9, 1)
         grid.addWidget(save_button, 10, 3)
+        self._update_translation_settings_visibility()
         layout.addWidget(card)
         layout.addStretch(1)
         return page
@@ -472,9 +485,10 @@ class AppWindow(FluentWindow):
         self.model_input.setText(openai.get("model", ""))
         self.concurrency_input.setText(openai.get("translate_concurrency", "50"))
         self.proxy_input.setText(ytdlp.get("proxy_port", ""))
+        self._update_translation_settings_visibility()
 
     def load_models(self) -> None:
-        if self.client:
+        if self.client and self._current_translation_mode() == "openai":
             self._job(
                 lambda: self.client.list_models(self.base_url_input.text().strip(), self.api_key_input.text().strip()),
                 self._models_loaded,
@@ -518,6 +532,14 @@ class AppWindow(FluentWindow):
 
     def _error(self, message: str) -> None:
         InfoBar.error("YouDubPlusPlus", message, parent=self, position=InfoBarPosition.TOP_RIGHT, duration=4500)
+
+    def _current_translation_mode(self) -> str:
+        return self.translation_mode_combo.currentData() or "openai"
+
+    def _update_translation_settings_visibility(self) -> None:
+        show_openai = self._current_translation_mode() == "openai"
+        for widget in getattr(self, "openai_setting_widgets", []):
+            widget.setVisible(show_openai)
 
 
 def _page(name: str) -> QWidget:
