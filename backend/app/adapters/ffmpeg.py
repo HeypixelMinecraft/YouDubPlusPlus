@@ -5,7 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from ..config import ffmpeg_binary, ffprobe_binary
+from ..config import ffmpeg_binary, ffprobe_binary, media_subprocess_creationflags
 
 SUBTITLE_PUNCTUATION = {"，", ",", "；", ";", "：", ":", "。", "?", "？", "!", "！", "、"}
 SUBTITLE_PROTECTED_PAIRS = {"《": "》", "（": "）", "【": "】", "「": "」", "『": "』"}
@@ -202,6 +202,7 @@ def probe_video_size(video_file: Path) -> tuple[int, int] | None:
         ],
         capture_output=True,
         text=True,
+        creationflags=media_subprocess_creationflags(),
     )
     if result.returncode != 0:
         return None
@@ -249,7 +250,12 @@ def subtitle_filter(video_file: Path, subtitle_file: Path) -> str:
 
 
 def _run_ffmpeg(command: list[str]) -> None:
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        creationflags=media_subprocess_creationflags(),
+    )
     if result.returncode == 0:
         return
     stderr = (result.stderr or "").strip()

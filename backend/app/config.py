@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -82,6 +83,12 @@ def ffmpeg_binary() -> str:
 
 def ffprobe_binary() -> str:
     return os.getenv("FFPROBE_PATH", "").strip() or "ffprobe"
+
+
+def media_subprocess_creationflags() -> int:
+    if sys.platform == "win32":
+        return subprocess.CREATE_NO_WINDOW
+    return 0
 
 
 def ytdlp_defaults() -> dict[str, str]:

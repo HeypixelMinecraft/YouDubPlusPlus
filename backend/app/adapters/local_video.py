@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from ..config import ffmpeg_binary
+from ..config import ffmpeg_binary, media_subprocess_creationflags
 from ..sanitize import sanitize_text
 from ..sources import SourceConfig
 from ..youtube import local_upload_task_id
@@ -72,6 +72,7 @@ def _transcode_to_mp4(source_file: Path, video_file: Path) -> None:
             str(video_file),
         ],
         check=True,
+        creationflags=media_subprocess_creationflags(),
     )
 
 

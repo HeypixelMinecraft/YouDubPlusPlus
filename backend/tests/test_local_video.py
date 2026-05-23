@@ -15,14 +15,17 @@ def test_import_local_video_transcodes_with_configured_ffmpeg(monkeypatch, tmp_p
     source_file = upload_dir / "demo.mov"
     source_file.write_bytes(b"video")
     commands: list[list[str]] = []
+    seen = {}
 
     def fake_run(cmd, check=False, **kwargs):
         commands.append(cmd)
+        seen.update(kwargs)
         output = Path(cmd[-1])
         output.write_bytes(b"mp4")
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
     monkeypatch.setenv("FFMPEG_PATH", "/opt/bin/ffmpeg")
+    monkeypatch.setattr(local_video, "media_subprocess_creationflags", lambda: 123)
     monkeypatch.setattr(local_video.subprocess, "run", fake_run)
 
     session, info = local_video.import_local_video(
@@ -37,4 +40,5 @@ def test_import_local_video_transcodes_with_configured_ffmpeg(monkeypatch, tmp_p
     assert commands
     assert commands[0][0] == "/opt/bin/ffmpeg"
     assert commands[0][-1] == str(session / "media" / "video_source.mp4")
+    assert seen["creationflags"] == 123
     metadata = json.loads((session / "metadata" / "local_info.json").read_text(encoding="utf-8"))

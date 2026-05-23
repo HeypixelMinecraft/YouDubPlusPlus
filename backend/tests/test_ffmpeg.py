@@ -8,12 +8,17 @@ from backend.app.adapters import ffmpeg
 
 
 def test_video_orientation_uses_height_greater_than_width(monkeypatch):
+    monkeypatch.setattr(ffmpeg, "media_subprocess_creationflags", lambda: 123)
+    seen = {}
+
     def fake_run(cmd, capture_output=False, text=False, **kwargs):
+        seen.update(kwargs)
         return subprocess.CompletedProcess(cmd, 0, stdout="720,1280\n", stderr="")
 
     monkeypatch.setattr(ffmpeg.subprocess, "run", fake_run)
 
     assert ffmpeg.get_video_orientation(Path("video.mp4")) == "portrait"
+    assert seen["creationflags"] == 123
 
 
 def test_video_orientation_defaults_to_landscape_when_probe_fails(monkeypatch):
@@ -112,8 +117,11 @@ def test_merge_video_burns_portrait_subtitles(monkeypatch, tmp_path):
 
 def test_run_ffmpeg_raises_with_stderr(monkeypatch):
     command = ["ffmpeg", "-bad"]
+    monkeypatch.setattr(ffmpeg, "media_subprocess_creationflags", lambda: 123)
+    seen = {}
 
     def fake_run(cmd, capture_output=False, text=False, **kwargs):
+        seen.update(kwargs)
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="bad filter syntax")
 
     monkeypatch.setattr(ffmpeg.subprocess, "run", fake_run)
@@ -124,6 +132,7 @@ def test_run_ffmpeg_raises_with_stderr(monkeypatch):
         assert "bad filter syntax" in str(exc)
     else:
         raise AssertionError("_run_ffmpeg should fail")
+    assert seen["creationflags"] == 123
 
 
 def test_split_subtitle_text_breaks_on_punctuation_and_keeps_protected():
