@@ -61,7 +61,7 @@ def openai_defaults() -> dict[str, str]:
 
 def translate_defaults() -> dict[str, str]:
     mode = os.getenv("TRANSLATE_MODE", "openai").strip().lower() or "openai"
-    if mode not in {"openai", "google"}:
+    if mode not in {"openai", "google", "youdao"}:
         mode = "openai"
     return {
         "mode": mode,

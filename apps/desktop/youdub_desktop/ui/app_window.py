@@ -236,6 +236,7 @@ class AppWindow(FluentWindow):
         self.translation_mode_combo = ComboBox()
         self.translation_mode_combo.addItem("OpenAI", userData="openai")
         self.translation_mode_combo.addItem("Google Translate", userData="google")
+        self.translation_mode_combo.addItem("Youdao Translate", userData="youdao")
         self.tts_backend_combo = ComboBox()
         self.tts_backend_combo.addItem("Auto", userData="auto")
         self.tts_backend_combo.addItem("IndexTTS", userData="index_tts")

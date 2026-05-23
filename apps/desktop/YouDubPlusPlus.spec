@@ -83,6 +83,7 @@ a = Analysis(
         "backend.app.adapters.demucs",
         "backend.app.adapters.google_translate",
         "backend.app.adapters.translate",
+        "backend.app.adapters.youdao_translate",
         "backend.app.adapters.tts",
         "backend.app.adapters.voxcpm",
         "backend.app.adapters.ytdlp",

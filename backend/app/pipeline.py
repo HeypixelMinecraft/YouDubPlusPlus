@@ -213,6 +213,11 @@ class PipelineRunner:
                 "translate",
                 f"Using Google Translate ({source.asr_language}->{source.target_language})",
             )
+        elif translate_settings["mode"] == "youdao":
+            self.stage_message(
+                "translate",
+                f"Using Youdao Translate ({source.asr_language}->{source.target_language})",
+            )
         else:
             self.stage_message(
                 "translate",

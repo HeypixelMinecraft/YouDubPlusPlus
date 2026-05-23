@@ -339,6 +339,18 @@ def test_translate_settings_persist_google(monkeypatch, tmp_path):
     assert loaded.json() == {"mode": "google"}
 
 
+def test_translate_settings_persist_youdao(monkeypatch, tmp_path):
+    configure_tmp_runtime(monkeypatch, tmp_path)
+    client = TestClient(main.app)
+
+    saved = client.post("/api/settings/translate", json={"mode": "youdao"})
+    loaded = client.get("/api/settings/translate")
+
+    assert saved.status_code == 200
+    assert saved.json() == {"mode": "youdao"}
+    assert loaded.json() == {"mode": "youdao"}
+
+
 def test_translate_settings_reject_invalid_mode(monkeypatch, tmp_path):
     configure_tmp_runtime(monkeypatch, tmp_path)
     client = TestClient(main.app)

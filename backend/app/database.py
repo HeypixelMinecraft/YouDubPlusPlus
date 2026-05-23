@@ -11,7 +11,7 @@ from .stages import STAGES
 
 
 ACTIVE_STATUSES = ("queued", "running")
-TRANSLATE_MODES = {"openai", "google"}
+TRANSLATE_MODES = {"openai", "google", "youdao"}
 TTS_BACKENDS = {"auto", "index_tts", "voxcpm"}
 
 
@@ -295,7 +295,7 @@ def get_setting(key: str, default: str = "") -> str:
 def _normalize_translate_mode(mode: str) -> str:
     cleaned = (mode or "").strip().lower() or "openai"
     if cleaned not in TRANSLATE_MODES:
-        raise ValueError("Translation mode must be one of: openai, google.")
+        raise ValueError("Translation mode must be one of: openai, google, youdao.")
     return cleaned
 
 

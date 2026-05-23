@@ -20,6 +20,13 @@ def translate_asr(
             "translate_concurrency": openai_settings.get("translate_concurrency", ""),
         }
         return google_translate_asr(asr_file, session, shared_settings, source)
+    if mode == "youdao":
+        from .youdao_translate import translate_asr as youdao_translate_asr
+
+        shared_settings = {
+            "translate_concurrency": openai_settings.get("translate_concurrency", ""),
+        }
+        return youdao_translate_asr(asr_file, session, shared_settings, source)
     if mode == "openai":
         from .openai_translate import translate_asr as openai_translate_asr
 
