@@ -85,7 +85,7 @@ class AppWindow(FluentWindow):
         self.addSubInterface(self.settings_page, FIF.SETTING, self._t("Settings"))
 
         self.timer = QTimer(self)
-        self.timer.setInterval(2000)
+        self.timer.setInterval(1000)
         self.timer.timeout.connect(self.refresh_tasks)
         self._job(self._init_client, self._ready)
 
