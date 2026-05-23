@@ -61,6 +61,7 @@ def test_translate_batch_uses_youdao_response(monkeypatch):
 
     assert out == ["zh:Hello.", "zh:World."]
     assert seen[0][0] == youdao_translate.YOUDAO_TRANSLATE_URL
+    assert seen[0][1]["needTranslate"] == "true"
     assert seen[0][1]["client"] == "webmain"
     assert seen[0][1]["keyfrom"] == "webfanyi.webmain"
     assert "sign" in seen[0][1]

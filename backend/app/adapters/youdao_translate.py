@@ -64,20 +64,6 @@ def _extract_translation(payload: Any) -> str:
                     if isinstance(item, str) and item.strip():
                         return item.strip()
 
-        web_trans = payload.get("web_trans")
-        if isinstance(web_trans, dict):
-            for item in web_trans.get("web-translation") or []:
-                if not isinstance(item, dict):
-                    continue
-                values = [
-                    trans.get("value")
-                    for trans in item.get("trans") or []
-                    if isinstance(trans, dict) and trans.get("value")
-                ]
-                if values:
-                    return "; ".join(str(value).strip() for value in values if str(value).strip())
-
-        if isinstance(ec, dict):
             word = ec.get("word")
             words = word if isinstance(word, list) else [word]
             for word_item in words:
@@ -97,6 +83,19 @@ def _extract_translation(payload: Any) -> str:
                 if values:
                     return "; ".join(value.strip() for value in values if value.strip())
 
+        web_trans = payload.get("web_trans")
+        if isinstance(web_trans, dict):
+            for item in web_trans.get("web-translation") or []:
+                if not isinstance(item, dict):
+                    continue
+                values = [
+                    trans.get("value")
+                    for trans in item.get("trans") or []
+                    if isinstance(trans, dict) and trans.get("value")
+                ]
+                if values:
+                    return "; ".join(str(value).strip() for value in values if str(value).strip())
+
     raise RuntimeError(f"Youdao Translate returned an unexpected response: {payload!r}")
 
 
@@ -105,8 +104,8 @@ def translate_sentence(text: str, source: SourceConfig) -> str:
     if not stripped:
         return ""
     payload = {
-        "needTranslate": "false",
-        "dicts": json.dumps({"count": "1", "dicts": ["ec"]}, separators=(",", ":")),
+        "needTranslate": "true",
+        "dicts": json.dumps({"count": "1", "dicts": ["fanyi"]}, separators=(",", ":")),
         "q": stripped,
         **_sign(stripped),
     }
