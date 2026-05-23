@@ -69,6 +69,8 @@ class AppWindow(FluentWindow):
         self.current_task: dict[str, Any] | None = None
         self.upload_file: Path | None = None
         self._refresh_busy = False
+        self._last_log_text = ""
+        self._last_log_task_id: str | None = None
         self.language = configured_language()
 
         self.setWindowTitle("YouDubPlusPlus")
@@ -348,7 +350,7 @@ class AppWindow(FluentWindow):
             for col, value in enumerate(values):
                 self.stages_table.setItem(row, col, _item(value))
         self.stages_table.resizeColumnsToContents()
-        self.log_box.setPlainText(log)
+        self._set_log_text(task.get("id") or "", log)
         self.resume_button.setEnabled(task.get("status") == "failed")
         self.rerun_button.setEnabled(not _active(task.get("status")))
         self.delete_button.setEnabled(not _active(task.get("status")))
@@ -406,8 +408,28 @@ class AppWindow(FluentWindow):
         self.current_task = None
         self.detail_title.setText(self._t("No task selected"))
         self.log_box.clear()
+        self._last_log_text = ""
+        self._last_log_task_id = None
         self.refresh_tasks()
         self.switchTo(self.tasks_page)
+
+    def _set_log_text(self, task_id: str, log: str) -> None:
+        if task_id == self._last_log_task_id and log == self._last_log_text:
+            return
+
+        scrollbar = self.log_box.verticalScrollBar()
+        previous_value = scrollbar.value()
+        was_at_bottom = scrollbar.value() >= scrollbar.maximum() - 4
+        task_changed = task_id != self._last_log_task_id
+
+        self.log_box.setPlainText(log)
+        if task_changed or was_at_bottom:
+            scrollbar.setValue(scrollbar.maximum())
+        else:
+            scrollbar.setValue(min(previous_value, scrollbar.maximum()))
+
+        self._last_log_text = log
+        self._last_log_task_id = task_id
 
     def open_final_video(self) -> None:
         task = self.current_task
