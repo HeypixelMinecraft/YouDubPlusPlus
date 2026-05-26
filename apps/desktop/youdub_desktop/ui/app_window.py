@@ -615,8 +615,8 @@ class AppWindow(FluentWindow):
         if not result.has_nvidia_gpu:
             warnings.append(
                 self._t(
-                    "No NVIDIA GPU was detected. Video separation, ASR, and TTS may be very slow or unavailable."
-                )
+                    "Unsupported environment detected: {os_name}. YouDub desktop mainly supports Windows 10/11, Linux, Ubuntu, and NVIDIA GPU."
+                ).format(os_name=result.os_name)
             )
         if not warnings:
             return

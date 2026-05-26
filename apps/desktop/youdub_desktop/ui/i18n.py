@@ -30,7 +30,7 @@ _ZH_CN = {
     "MCP server stopped": "MCP 服务已停止",
     "MCP server is disabled.": "MCP 服务已禁用。",
     "Environment check": "环境检查",
-    "No NVIDIA GPU was detected. Video separation, ASR, and TTS may be very slow or unavailable.": "未检测到 NVIDIA 显卡。视频分离、语音识别和语音合成可能会很慢或不可用。",
+    "Unsupported environment detected: {os_name}. YouDub desktop mainly supports Windows 10/11, Linux, Ubuntu, and NVIDIA GPU.": "检测到不受支持的系统：{os_name}。YouDub 桌面端主要支持 Windows 10/11、Linux 和 Ubuntu 、NVIDIA GPU上使用。",
     "YouDub backend is running inside the desktop app.": "YouDub 后端已在桌面应用内运行。",
     "Create localization task": "创建本地化任务",
     "No file selected": "未选择文件",
