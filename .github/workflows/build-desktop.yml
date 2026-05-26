@@ -91,7 +91,13 @@ jobs:
           uv pip install -r requirements-desktop-gpu.txt
           uv pip install --upgrade pyinstaller
 
+      - name: Install CUDA PyTorch
+        if: runner.os != 'macOS'
+        run: |
+          uv pip install -r requirements-torch-cu128.txt
+
       - name: Install CPU PyTorch
+        if: runner.os == 'macOS'
         run: |
           uv pip install torch torchaudio
 
