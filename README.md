@@ -16,7 +16,7 @@ English README: [README.en.md](README.en.md)
 - TTS 默认 `TTS_BACKEND=auto`：优先 IndexTTS，失败后回退 VoxCPM2；也可以强制 `index_tts` 或 `voxcpm`。
 - GitHub Actions 每次提交运行轻量校验，并可在手动触发或 `v*` tag 时构建 Windows、macOS、Linux 桌面产物。
 
-## 测试素材
+## 测试素材 (来自[Youtube](https://www.youtube.com/shorts/U9jxeRd87EQ))
 https://github.com/user-attachments/assets/bfd5a20d-4932-4f87-8d54-d2bc54a3b373
 
 https://github.com/user-attachments/assets/2b92b64f-e6a0-41c0-8f08-6389a95cce1d
