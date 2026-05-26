@@ -26,12 +26,17 @@ def main() -> int:
             pass
 
     from PyQt5.QtGui import QIcon
-    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtWidgets import QApplication, QMessageBox
 
+    from youdub_desktop.environment_check import detect_os_name, is_supported_os, unsupported_os_message
     from youdub_desktop.mcp_service import stop_mcp_service
     from youdub_desktop.ui.app_window import AppWindow
 
     app = QApplication(sys.argv)
+    os_name = detect_os_name()
+    if not is_supported_os(os_name):
+        QMessageBox.critical(None, "YouDubPlusPlus", unsupported_os_message(os_name))
+        return 1
     app.aboutToQuit.connect(stop_mcp_service)
     icon_path = _asset_path(repo_root, "youdub-icon.ico")
     if icon_path.exists():

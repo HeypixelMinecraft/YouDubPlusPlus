@@ -612,12 +612,6 @@ class AppWindow(FluentWindow):
 
     def _environment_checked(self, result: EnvironmentCheckResult) -> None:
         warnings = []
-        if not result.supported_os:
-            warnings.append(
-                self._t(
-                    "Unsupported system detected: {os_name}. YouDub desktop is tested on Windows 10/11, Linux, and Ubuntu."
-                ).format(os_name=result.os_name)
-            )
         if not result.has_nvidia_gpu:
             warnings.append(
                 self._t(

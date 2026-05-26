@@ -17,6 +17,13 @@ class EnvironmentCheckResult:
     has_nvidia_gpu: bool
 
 
+def unsupported_os_message(os_name: str) -> str:
+    return (
+        f"Unsupported system detected: {os_name}.\n"
+        "YouDubPlusPlus desktop requires Windows 10/11, Linux, or Ubuntu."
+    )
+
+
 def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,

@@ -23,6 +23,13 @@ def test_supported_os_accepts_linux_and_ubuntu():
     assert not environment_check.is_supported_os("Darwin")
 
 
+def test_unsupported_os_message_names_supported_systems():
+    message = environment_check.unsupported_os_message("Windows 8")
+
+    assert "Windows 8" in message
+    assert "Windows 10/11" in message
+
+
 def test_has_nvidia_gpu_uses_nvidia_smi():
     def runner(command: list[str]) -> subprocess.CompletedProcess[str]:
         assert command[0] == "nvidia-smi"
