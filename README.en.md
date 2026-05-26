@@ -87,6 +87,8 @@ Common variables:
 | `TTS_BACKEND` | `auto`, `index_tts`, or `voxcpm` |
 | `INDEXTTS_MODEL_DIR` / `INDEXTTS_CFG_PATH` | IndexTTS checkpoint directory and config path |
 | `VOXCPM_MODEL` / `VOXCPM_MODEL_DIR` | VoxCPM2 fallback model configuration |
+| `YOUDUB_MCP_ENABLED` | Enable the backend MCP SSE server, defaults to `true` |
+| `YOUDUB_MCP_HOST` / `YOUDUB_MCP_PORT` | Host and port used when the desktop app starts the MCP SSE server, defaults to `127.0.0.1:8765` |
 
 ## Run Desktop
 
@@ -101,6 +103,28 @@ macOS / Linux:
 ```bash
 .venv/bin/python apps/desktop/main.py
 ```
+
+## MCP SSE Server
+
+The desktop app provides an MCP page where you can start or stop the local MCP SSE server. The default client URL is:
+
+```text
+http://127.0.0.1:8765/mcp/sse
+```
+
+When running the FastAPI backend separately with uvicorn, YouDub also exposes an MCP server at `/mcp` using SSE transport:
+
+```powershell
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+MCP clients should connect to:
+
+```text
+http://127.0.0.1:8000/mcp/sse
+```
+
+The first MCP version exposes task-management tools for listing tasks, reading task details and logs, creating URL tasks, rerunning tasks, and resuming failed tasks. Local video upload, deletion, cookies, and settings writes are intentionally not exposed as MCP tools.
 
 ## Package
 

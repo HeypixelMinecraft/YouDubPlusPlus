@@ -1,23 +1,25 @@
 from __future__ import annotations
 
 import os
-import shutil
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from . import database, worker
 from .adapters.local_video import remove_upload, upload_dir
 from .adapters.openai_translate import list_models as list_openai_models
-from .config import WORKFOLDER, YOUTUBE_COOKIE_PATH, ensure_runtime_dirs
+from .config import WORKFOLDER, YOUTUBE_COOKIE_PATH, embedded_desktop_mcp_server, ensure_runtime_dirs, mcp_enabled
+from .mcp_server import create_mcp_asgi_app
 from .pipeline import run_task
 from .sanitize import sanitize_text
+from .task_actions import purge_task, rerun_task as rerun_existing_task
+from .task_actions import resume_task as resume_failed_task
 from .youtube import LOCAL_UPLOAD_DIRECTIONS, extract_video_id, is_local_upload_url
 
 ALLOWED_VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi", ".flv", ".wmv"}
@@ -80,7 +82,8 @@ async def lifespan(app: FastAPI):
     ensure_runtime_dirs()
     database.init_db()
     database.backfill_titles_from_metadata()
-    database.fail_stale_active_tasks()
+    if not embedded_desktop_mcp_server():
+        database.fail_stale_active_tasks()
     worker.start(run_task)
     yield
 
@@ -106,6 +109,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _is_mcp_path(path: str) -> bool:
+    return path == "/mcp" or path.startswith("/mcp/")
+
+
+@app.middleware("http")
+async def mcp_enabled_middleware(request: Request, call_next):
+    if not _is_mcp_path(request.url.path):
+        return await call_next(request)
+    if not mcp_enabled():
+        return JSONResponse({"detail": "MCP server is disabled."}, status_code=404)
+    return await call_next(request)
+
+
+app.mount("/mcp", create_mcp_asgi_app())
 
 
 @app.get("/api/health")
@@ -199,27 +218,6 @@ def task_detail(task_id: str) -> dict:
     return task
 
 
-def _is_inside_workfolder(path: Path) -> bool:
-    workfolder = WORKFOLDER.resolve()
-    try:
-        path.resolve().relative_to(workfolder)
-    except ValueError:
-        return False
-    return True
-
-
-def _purge_task(task: dict) -> None:
-    session_path = task.get("session_path")
-    if session_path:
-        session_dir = Path(session_path)
-        if session_dir.exists() and _is_inside_workfolder(session_dir):
-            shutil.rmtree(session_dir)
-    log_file = database.log_path(task["id"])
-    if log_file.exists():
-        log_file.unlink()
-    database.delete_task(task["id"])
-
-
 @app.delete("/api/tasks/{task_id}", status_code=204)
 def delete_task(task_id: str) -> Response:
     task = database.get_task(task_id)
@@ -227,7 +225,7 @@ def delete_task(task_id: str) -> Response:
         raise HTTPException(status_code=404, detail="Task not found.")
     if task["status"] == "running":
         raise HTTPException(status_code=409, detail="Cannot delete a running task.")
-    _purge_task(task)
+    purge_task(task)
     if is_local_upload_url(task["url"]):
         remove_upload(WORKFOLDER, task["id"])
     return Response(status_code=204)
@@ -235,29 +233,22 @@ def delete_task(task_id: str) -> Response:
 
 @app.post("/api/tasks/{task_id}/rerun")
 def rerun_task(task_id: str) -> dict:
-    task = database.get_task(task_id)
-    if not task:
+    try:
+        return rerun_existing_task(task_id)
+    except ValueError as exc:
         raise HTTPException(status_code=404, detail="Task not found.")
-    if task["status"] == "running":
-        raise HTTPException(status_code=409, detail="Cannot rerun a running task.")
-
-    url = task["url"]
-    _purge_task(task)
-    new_id = database.create_task(url, task_id=task_id)
-    worker.enqueue(new_id)
-    return database.get_task(new_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.post("/api/tasks/{task_id}/resume")
 def resume_task(task_id: str) -> dict:
-    task = database.get_task(task_id)
-    if not task:
+    try:
+        return resume_failed_task(task_id)
+    except ValueError as exc:
         raise HTTPException(status_code=404, detail="Task not found.")
-    if task["status"] != "failed":
-        raise HTTPException(status_code=409, detail="Only failed tasks can be resumed.")
-    database.reset_failed_for_resume(task_id)
-    worker.enqueue(task_id)
-    return database.get_task(task_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get("/api/tasks/{task_id}/log", response_class=PlainTextResponse)

@@ -3,6 +3,7 @@ uvicorn[standard]
 python-dotenv
 pydantic
 python-multipart
+mcp
 openai
 yt-dlp[default]
 dora-search>=0.1.12

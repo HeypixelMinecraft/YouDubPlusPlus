@@ -28,9 +28,11 @@ def main() -> int:
     from PyQt5.QtGui import QIcon
     from PyQt5.QtWidgets import QApplication
 
+    from youdub_desktop.mcp_service import stop_mcp_service
     from youdub_desktop.ui.app_window import AppWindow
 
     app = QApplication(sys.argv)
+    app.aboutToQuit.connect(stop_mcp_service)
     icon_path = _asset_path(repo_root, "youdub-icon.ico")
     if icon_path.exists():
         app.setWindowIcon(QIcon(str(icon_path)))
@@ -43,4 +45,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

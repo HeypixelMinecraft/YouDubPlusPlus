@@ -95,3 +95,21 @@ def ytdlp_defaults() -> dict[str, str]:
     return {
         "proxy_port": os.getenv("YTDLP_PROXY_PORT", ""),
     }
+
+
+def mcp_enabled() -> bool:
+    value = os.getenv("YOUDUB_MCP_ENABLED", "true").strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
+def mcp_host() -> str:
+    return os.getenv("YOUDUB_MCP_HOST", "127.0.0.1").strip() or "127.0.0.1"
+
+
+def mcp_port() -> int:
+    raw = os.getenv("YOUDUB_MCP_PORT", "8765").strip() or "8765"
+    return int(raw)
+
+
+def embedded_desktop_mcp_server() -> bool:
+    return os.getenv("YOUDUB_DESKTOP_MCP_SERVER", "").strip().lower() in {"1", "true", "yes", "on"}

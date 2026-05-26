@@ -78,7 +78,9 @@ a = Analysis(
     + heavy_datas,
     hiddenimports=[
         "backend.app.main",
+        "backend.app.mcp_server",
         "backend.app.pipeline",
+        "backend.app.task_actions",
         "backend.app.adapters.audio",
         "backend.app.adapters.demucs",
         "backend.app.adapters.google_translate",
@@ -88,6 +90,7 @@ a = Analysis(
         "backend.app.adapters.voxcpm",
         "backend.app.adapters.ytdlp",
         "youdub_desktop.main",
+        "youdub_desktop.mcp_service",
         "youdub_desktop.direct_client",
         "youdub_desktop.ui.app_window",
         "youdub_desktop.ui.fluent_compat",

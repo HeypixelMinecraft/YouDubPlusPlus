@@ -2,6 +2,7 @@ fastapi
 python-dotenv
 pydantic
 python-multipart
+mcp
 httpx
 openai
 requests

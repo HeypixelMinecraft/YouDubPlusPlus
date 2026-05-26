@@ -107,6 +107,8 @@ cp env.txt.example .env
 | `INDEXTTS_MODEL_DIR` / `INDEXTTS_CFG_PATH` | IndexTTS checkpoints 目录和配置路径 |
 | `VOXCPM_MODEL` / `VOXCPM_MODEL_DIR` | VoxCPM2 回退模型配置 |
 | `YOUDUB_APP_LANGUAGE` | 桌面端界面语言，支持 `zh_CN` 或 `en_US` |
+| `YOUDUB_MCP_ENABLED` | 是否启用后端 MCP SSE 服务，默认 `true` |
+| `YOUDUB_MCP_HOST` / `YOUDUB_MCP_PORT` | 桌面端启动 MCP SSE 服务时监听的地址和端口，默认 `127.0.0.1:8765` |
 
 源码运行时，`workfolder` 和 `data` 默认在仓库根目录；桌面打包后，它们默认在 `YouDubPlusPlus.exe` 同级目录，不会写进 PyInstaller 的 `_internal` 资源目录。
 
@@ -123,6 +125,28 @@ macOS / Linux：
 ```bash
 .venv/bin/python apps/desktop/main.py
 ```
+
+## MCP SSE 服务
+
+桌面端提供 MCP 页面，可以在页面中启动或停止本机 MCP SSE 服务。默认连接地址：
+
+```text
+http://127.0.0.1:8765/mcp/sse
+```
+
+也可以通过 uvicorn 单独运行 FastAPI 后端，此时 YouDub 会在 `/mcp` 暴露 MCP SSE 服务：
+
+```powershell
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+MCP 客户端连接地址：
+
+```text
+http://127.0.0.1:8000/mcp/sse
+```
+
+第一版 MCP 暴露任务管理工具：查看任务列表、查看任务详情、读取日志、创建 URL 任务、重新运行任务、恢复失败任务。本地视频上传、删除任务、cookie 和设置写入暂不作为 MCP 工具暴露。
 
 ## 打包
 

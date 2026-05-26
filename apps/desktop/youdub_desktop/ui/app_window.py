@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
-from PyQt5.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, QUrl, pyqtSignal
+from PyQt5.QtCore import QObject, QRunnable, QSettings, Qt, QThreadPool, QTimer, QUrl, pyqtSignal
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtWidgets import QFileDialog, QFrame, QGridLayout, QHBoxLayout, QMessageBox, QVBoxLayout, QWidget
 
@@ -30,6 +30,7 @@ from qfluentwidgets import (
 )
 
 from ..direct_client import DirectClient
+from ..mcp_service import current_mcp_service, start_mcp_service, stop_mcp_service
 from .i18n import LANGUAGE_NAMES, configured_language, save_language, translate
 
 
@@ -81,9 +82,11 @@ class AppWindow(FluentWindow):
 
         self.tasks_page = self._build_tasks_page()
         self.detail_page = self._build_detail_page()
+        self.mcp_page = self._build_mcp_page()
         self.settings_page = self._build_settings_page()
         self.addSubInterface(self.tasks_page, FIF.HOME, self._t("Tasks"))
         self.addSubInterface(self.detail_page, FIF.VIDEO, self._t("Detail"))
+        self.addSubInterface(self.mcp_page, FIF.CONNECT, self._t("MCP"))
         self.addSubInterface(self.settings_page, FIF.SETTING, self._t("Settings"))
 
         self.timer = QTimer(self)
@@ -204,6 +207,50 @@ class AppWindow(FluentWindow):
         self.log_box.setReadOnly(True)
         self.log_box.setPlaceholderText(self._t("Logs will appear when a task starts."))
         layout.addWidget(self.log_box, 1)
+        return page
+
+    def _build_mcp_page(self) -> QWidget:
+        page = _page("mcpPage")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 26, 28, 26)
+        layout.setSpacing(18)
+        layout.addWidget(SubtitleLabel(self._t("MCP server")))
+
+        card = CardWidget()
+        grid = QGridLayout(card)
+        grid.setContentsMargins(22, 18, 22, 18)
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(12)
+
+        settings = QSettings("YouDubPlusPlus", "YouDubPlusPlus")
+        self.mcp_host_input = LineEdit()
+        self.mcp_host_input.setText(str(settings.value("mcp/host", "127.0.0.1")))
+        self.mcp_port_input = LineEdit()
+        self.mcp_port_input.setText(str(settings.value("mcp/port", "8765")))
+        self.mcp_status_label = BodyLabel("")
+        self.mcp_url_label = BodyLabel("")
+        self.mcp_url_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+
+        self.mcp_start_button = PrimaryPushButton(self._t("Start MCP"))
+        self.mcp_start_button.setIcon(FIF.PLAY)
+        self.mcp_start_button.clicked.connect(self.start_mcp_from_page)
+        self.mcp_stop_button = PushButton(self._t("Stop MCP"))
+        self.mcp_stop_button.setIcon(FIF.CLOSE)
+        self.mcp_stop_button.clicked.connect(self.stop_mcp_from_page)
+
+        grid.addWidget(StrongBodyLabel(self._t("Host")), 0, 0)
+        grid.addWidget(self.mcp_host_input, 0, 1, 1, 2)
+        grid.addWidget(StrongBodyLabel(self._t("Port")), 1, 0)
+        grid.addWidget(self.mcp_port_input, 1, 1, 1, 2)
+        grid.addWidget(StrongBodyLabel(self._t("Status")), 2, 0)
+        grid.addWidget(self.mcp_status_label, 2, 1, 1, 2)
+        grid.addWidget(StrongBodyLabel(self._t("SSE URL")), 3, 0)
+        grid.addWidget(self.mcp_url_label, 3, 1, 1, 2)
+        grid.addWidget(self.mcp_start_button, 4, 1)
+        grid.addWidget(self.mcp_stop_button, 4, 2)
+        layout.addWidget(card)
+        layout.addStretch(1)
+        self._refresh_mcp_page()
         return page
 
     def _build_settings_page(self) -> QWidget:
@@ -526,6 +573,42 @@ class AppWindow(FluentWindow):
             self.client.save_ytdlp_settings(proxy_port)
 
         self._job(save, lambda _: self._toast(self._t("Settings saved.")))
+
+    def start_mcp_from_page(self) -> None:
+        host = self.mcp_host_input.text().strip() or "127.0.0.1"
+        raw_port = self.mcp_port_input.text().strip() or "8765"
+        if not raw_port.isdigit() or not 1024 <= int(raw_port) <= 65535:
+            self._error(self._t("MCP port must be between 1024 and 65535."))
+            return
+
+        port = int(raw_port)
+        settings = QSettings("YouDubPlusPlus", "YouDubPlusPlus")
+        settings.setValue("mcp/host", host)
+        settings.setValue("mcp/port", str(port))
+
+        try:
+            info = start_mcp_service(host, port)
+        except Exception as exc:  # noqa: BLE001
+            self._error(str(exc))
+            return
+        self._refresh_mcp_page()
+        if info:
+            self._toast(f"{self._t('MCP server started')}: {info.sse_url}")
+        else:
+            self._error(self._t("MCP server is disabled."))
+
+    def stop_mcp_from_page(self) -> None:
+        stop_mcp_service()
+        self._refresh_mcp_page()
+        self._toast(self._t("MCP server stopped"))
+
+    def _refresh_mcp_page(self) -> None:
+        info = current_mcp_service()
+        running = info is not None
+        self.mcp_status_label.setText(self._t("Running") if running else self._t("Stopped"))
+        self.mcp_url_label.setText(info.sse_url if info else self._t("Start MCP to show the SSE URL."))
+        self.mcp_start_button.setEnabled(not running)
+        self.mcp_stop_button.setEnabled(running)
 
     def _toast(self, message: str) -> None:
         InfoBar.success("YouDubPlusPlus", message, parent=self, position=InfoBarPosition.TOP_RIGHT, duration=2200)
