@@ -37,7 +37,7 @@ jobs:
 
       - name: Run backend smoke tests
         run: |
-          uv run python -m pytest backend/tests/test_index_tts.py backend/tests/test_pipeline.py backend/tests/test_settings_and_api.py
+          uv run python -m pytest backend/tests/test_tts.py backend/tests/test_pipeline.py backend/tests/test_settings_and_api.py apps/desktop/tests/test_environment_check.py
 
       - name: Compile sources
         run: |

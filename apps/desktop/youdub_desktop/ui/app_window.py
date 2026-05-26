@@ -30,6 +30,7 @@ from qfluentwidgets import (
 )
 
 from ..direct_client import DirectClient
+from ..environment_check import EnvironmentCheckResult, check_desktop_environment
 from ..mcp_service import current_mcp_service, start_mcp_service, stop_mcp_service
 from .i18n import LANGUAGE_NAMES, configured_language, save_language, translate
 
@@ -106,6 +107,7 @@ class AppWindow(FluentWindow):
         self.refresh_tasks()
         self.load_settings()
         self.timer.start()
+        self._job(check_desktop_environment, self._environment_checked, lambda _: None)
 
     def _build_tasks_page(self) -> QWidget:
         page = _page("tasksPage")
@@ -604,6 +606,29 @@ class AppWindow(FluentWindow):
 
     def _error(self, message: str) -> None:
         InfoBar.error("YouDubPlusPlus", message, parent=self, position=InfoBarPosition.TOP_RIGHT, duration=4500)
+
+    def _warn(self, message: str) -> None:
+        InfoBar.warning("YouDubPlusPlus", message, parent=self, position=InfoBarPosition.TOP_RIGHT, duration=7000)
+
+    def _environment_checked(self, result: EnvironmentCheckResult) -> None:
+        warnings = []
+        if not result.supported_os:
+            warnings.append(
+                self._t(
+                    "Unsupported system detected: {os_name}. YouDub desktop is tested on Windows 10/11, Linux, and Ubuntu."
+                ).format(os_name=result.os_name)
+            )
+        if not result.has_nvidia_gpu:
+            warnings.append(
+                self._t(
+                    "No NVIDIA GPU was detected. Video separation, ASR, and TTS may be very slow or unavailable."
+                )
+            )
+        if not warnings:
+            return
+        message = "\n".join(warnings)
+        self._warn(message)
+        QMessageBox.warning(self, self._t("Environment check"), message)
 
     def _current_translation_mode(self) -> str:
         return self.translation_mode_combo.currentData() or "openai"

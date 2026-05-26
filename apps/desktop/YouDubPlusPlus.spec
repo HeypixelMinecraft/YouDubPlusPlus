@@ -88,6 +88,7 @@ a = Analysis(
         "backend.app.adapters.voxcpm",
         "backend.app.adapters.ytdlp",
         "youdub_desktop.main",
+        "youdub_desktop.environment_check",
         "youdub_desktop.mcp_service",
         "youdub_desktop.direct_client",
         "youdub_desktop.ui.app_window",
