@@ -52,8 +52,6 @@ if BUNDLE_GPU_DEPS:
         "yaml",
         "whisper",
         "voxcpm",
-        "modelscope",
-        "huggingface_hub",
     ]
     heavy_excludes = []
 
