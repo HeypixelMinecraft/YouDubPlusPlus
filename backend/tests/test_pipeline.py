@@ -127,11 +127,10 @@ def test_tts_stage_uses_configured_tts_adapter(monkeypatch, tmp_path):
     assert tts_stage["last_message"] == "[FakeTTS] Generated 1 TTS clips -> " + str(output_dir)
 
 
-def test_tts_adapter_uses_saved_backend_setting(monkeypatch, tmp_path):
+def test_tts_adapter_uses_voxcpm(monkeypatch, tmp_path):
     from backend.app.adapters import tts
 
     configure_db(monkeypatch, tmp_path)
-    database.save_tts_settings("voxcpm")
     output_dir = tmp_path / "tts"
 
     def fake_voxcpm():

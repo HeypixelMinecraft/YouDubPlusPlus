@@ -63,7 +63,6 @@ _ZH_CN = {
     "yt-dlp proxy port": "yt-dlp 代理端口",
     "Translation mode": "翻译模式",
     "Youdao Translate": "有道翻译",
-    "TTS backend": "TTS 后端",
     "OpenAI base URL": "OpenAI 接口地址",
     "OpenAI API key": "OpenAI API key",
     "Model": "模型",

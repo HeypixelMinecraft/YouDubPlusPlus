@@ -12,7 +12,7 @@ Chinese README: [README.md](README.md)
 - Desktop and backend are integrated in one process by default.
 - Supports YouTube / Bilibili URLs and local video input.
 - Uses Demucs for source separation, Whisper for transcription, and an OpenAI-compatible Chat Completions API for translation.
-- TTS defaults to `TTS_BACKEND=auto`: try IndexTTS first, then fall back to VoxCPM2. You can force `index_tts` or `voxcpm`.
+- TTS uses VoxCPM2.
 - GitHub Actions runs lightweight checks on every push and can build Windows, macOS, and Linux artifacts on manual dispatch or `v*` tags.
 
 ## Demo Assets (From [Youtube](https://www.youtube.com/shorts/U9jxeRd87EQ))
@@ -57,8 +57,6 @@ uv venv --python 3.12 .venv
 uv pip install -r requirements.txt
 ```
 
-IndexTTS is installed from GitHub through `requirements.txt`. If that install fails, follow the upstream setup notes: [index-tts/index-tts](https://github.com/index-tts/index-tts). Download IndexTTS2 checkpoints from HuggingFace or ModelScope, for example `IndexTeam/IndexTTS-2`, then set `INDEXTTS_MODEL_DIR` to the directory that contains `config.yaml`.
-
 ## Configure
 
 Copy the environment file:
@@ -84,8 +82,6 @@ Common variables:
 | `OPENAI_API_KEY` | API key for translation |
 | `OPENAI_MODEL` | Translation model |
 | `YTDLP_PROXY_PORT` | Local proxy port for yt-dlp |
-| `TTS_BACKEND` | `auto`, `index_tts`, or `voxcpm` |
-| `INDEXTTS_MODEL_DIR` / `INDEXTTS_CFG_PATH` | IndexTTS checkpoint directory and config path |
 | `VOXCPM_MODEL` / `VOXCPM_MODEL_DIR` | VoxCPM2 fallback model configuration |
 | `YOUDUB_MCP_ENABLED` | Enable the backend MCP SSE server, defaults to `true` |
 | `YOUDUB_MCP_HOST` / `YOUDUB_MCP_PORT` | Host and port used when the desktop app starts the MCP SSE server, defaults to `127.0.0.1:8765` |
@@ -146,7 +142,7 @@ YouTube / Bilibili URL or local video
   -> Whisper transcribes speech and timestamps
   -> OpenAI-compatible API translates text
   -> Source vocals are split into per-sentence reference clips
-  -> IndexTTS or VoxCPM2 generates target-language voiceover
+  -> VoxCPM2 generates target-language voiceover
   -> Voiceover is aligned and mixed with background audio
   -> FFmpeg burns subtitles and renders the final mp4
 ```

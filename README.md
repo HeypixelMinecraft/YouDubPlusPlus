@@ -13,7 +13,7 @@ English README: [README.en.md](README.en.md)
 - 后端与桌面端进程内集成，默认不暴露本地 Web UI。
 - 支持 YouTube / Bilibili URL，也支持本地视频上传。
 - 使用 Demucs 分离人声与背景音，Whisper 识别字幕，OpenAI 兼容 Chat Completions API 翻译。
-- TTS 默认 `TTS_BACKEND=auto`：优先 IndexTTS，失败后回退 VoxCPM2；也可以强制 `index_tts` 或 `voxcpm`。
+- TTS 使用 VoxCPM2。
 - GitHub Actions 每次提交运行轻量校验，并可在手动触发或 `v*` tag 时构建 Windows、macOS、Linux 桌面产物。
 
 ## 测试素材 (来自[Youtube](https://www.youtube.com/shorts/U9jxeRd87EQ))
@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/2b92b64f-e6a0-41c0-8f08-6389a95cce1d
 ## 环境要求
 
 - Python 3.12 for lightweight development and tests
-- Python 3.11 for full desktop builds with IndexTTS, because IndexTTS currently depends on `numba==0.58.1`, which does not support Python 3.12
+- Python 3.11 for full desktop builds
 - Git 和 Git submodule
 - FFmpeg / ffprobe，并确保在 `PATH` 中可用
 - 处理 YouTube 时建议准备可用代理和 Netscape 格式 Cookie。推荐使用 Chrome 插件 [get-cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 导出 Netscape 格式 cookie 后粘贴到桌面端设置页。
@@ -75,8 +75,6 @@ uv pip install -r requirements-torch-cu126.txt
 uv pip install -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 ```
 
-IndexTTS 通过 `requirements.txt` 从 GitHub 安装。如果安装失败，请按上游说明排查：[index-tts/index-tts](https://github.com/index-tts/index-tts)。IndexTTS2 checkpoints 可从 HuggingFace 或 ModelScope 下载，例如 `IndexTeam/IndexTTS-2`，然后把 `INDEXTTS_MODEL_DIR` 指向包含 `config.yaml` 的目录。
-
 ## 配置
 
 复制环境文件：
@@ -103,8 +101,6 @@ cp env.txt.example .env
 | `OPENAI_API_KEY` | 翻译使用的 API key |
 | `OPENAI_MODEL` | 翻译使用的模型 |
 | `YTDLP_PROXY_PORT` | yt-dlp 使用的本地代理端口 |
-| `TTS_BACKEND` | `auto`、`index_tts` 或 `voxcpm` |
-| `INDEXTTS_MODEL_DIR` / `INDEXTTS_CFG_PATH` | IndexTTS checkpoints 目录和配置路径 |
 | `VOXCPM_MODEL` / `VOXCPM_MODEL_DIR` | VoxCPM2 回退模型配置 |
 | `YOUDUB_APP_LANGUAGE` | 桌面端界面语言，支持 `zh_CN` 或 `en_US` |
 | `YOUDUB_MCP_ENABLED` | 是否启用后端 MCP SSE 服务，默认 `true` |
@@ -177,7 +173,7 @@ pyinstaller --noconfirm apps/desktop/YouDubPlusPlus.spec
 .\build_cuda.ps1 -TorchRequirements requirements-torch-cu126.txt
 ```
 
-上面的基础 PyInstaller 命令生成轻量桌面包，适合 CI 验证界面和基础流程；它不会把 Torch、Demucs、IndexTTS、VoxCPM2 等大模型依赖打进包里。要手动生成可直接运行 Demucs 的 GPU 完整包，请先安装 GPU 依赖并开启打包开关：
+上面的基础 PyInstaller 命令生成轻量桌面包，适合 CI 验证界面和基础流程；它不会把 Torch、Demucs、VoxCPM2 等大模型依赖打进包里。要手动生成可直接运行 Demucs 的 GPU 完整包，请先安装 GPU 依赖并开启打包开关：
 
 ```powershell
 uv pip install -r requirements-desktop-gpu.txt
@@ -197,7 +193,7 @@ YouTube / Bilibili URL 或本地视频
   -> Whisper 识别语音和时间戳
   -> OpenAI 兼容 API 翻译
   -> 按句切分原人声作为参考音频
-  -> IndexTTS 或 VoxCPM2 生成目标语言配音
+  -> VoxCPM2 生成目标语言配音
   -> 对齐并混合背景音
   -> FFmpeg 压制字幕并输出 mp4
 ```

@@ -27,7 +27,7 @@ To build locally:
 ./build_cuda.ps1
 ```
 
-Full desktop builds use Python 3.11 because IndexTTS currently depends on `numba==0.58.1`, which does not support Python 3.12. If an old `.venv` uses Python 3.12, rebuild it:
+Full desktop builds use Python 3.11. If an old `.venv` uses Python 3.12, rebuild it:
 
 ```bash
 ./build_cuda.ps1 -RecreateVenv

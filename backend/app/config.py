@@ -68,15 +68,6 @@ def translate_defaults() -> dict[str, str]:
     }
 
 
-def tts_defaults() -> dict[str, str]:
-    backend = os.getenv("TTS_BACKEND", "auto").strip().lower().replace("-", "_") or "auto"
-    if backend not in {"auto", "index_tts", "voxcpm"}:
-        backend = "auto"
-    return {
-        "backend": backend,
-    }
-
-
 def ffmpeg_binary() -> str:
     return os.getenv("FFMPEG_PATH", "").strip() or "ffmpeg"
 

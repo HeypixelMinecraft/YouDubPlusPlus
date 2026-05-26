@@ -57,10 +57,6 @@ class TranslationSettingsUpdate(BaseModel):
     mode: str = "openai"
 
 
-class TtsSettingsUpdate(BaseModel):
-    backend: str = "auto"
-
-
 class YtdlpSettingsUpdate(BaseModel):
     proxy_port: str = ""
 
@@ -340,20 +336,6 @@ def save_translate_settings(payload: TranslationSettingsUpdate) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return get_translate_settings()
-
-
-@app.get("/api/settings/tts")
-def get_tts_settings() -> dict:
-    return database.get_tts_settings()
-
-
-@app.post("/api/settings/tts")
-def save_tts_settings(payload: TtsSettingsUpdate) -> dict:
-    try:
-        database.save_tts_settings(payload.backend)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return get_tts_settings()
 
 
 @app.get("/api/settings/ytdlp")
