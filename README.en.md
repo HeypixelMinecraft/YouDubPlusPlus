@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/2b92b64f-e6a0-41c0-8f08-6389a95cce1d
 - FFmpeg / ffprobe available on `PATH`
 - A proxy and Netscape-format cookies are recommended for YouTube videos
 - An OpenAI-compatible API base URL, API key, and model name
-- CUDA GPU is recommended for complete video processing. CPU can run parts of the flow, but ASR, separation, and TTS will be slow.
+- CUDA GPU is recommended for complete video processing. ASR, separation, and TTS will be slow in non-CUDA environments.
 
 System dependency examples:
 
