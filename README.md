@@ -17,10 +17,21 @@ English README: [README.en.md](README.en.md)
 - GitHub Actions 每次提交运行轻量校验，并可在手动触发或 `v*` tag 时构建 Windows、macOS、Linux 桌面产物。
 
 ## 测试素材 (来自[Youtube](https://www.youtube.com/shorts/U9jxeRd87EQ))
+<table>
+<tr><th>原始英文</th><th>中文配音版</th></tr>
+<tr>
+<td>
+
 https://github.com/user-attachments/assets/bfd5a20d-4932-4f87-8d54-d2bc54a3b373
+
+</td>
+<td>
 
 https://github.com/user-attachments/assets/2b92b64f-e6a0-41c0-8f08-6389a95cce1d
 
+</td>
+</tr>
+</table>
 
 
 ## 环境要求
