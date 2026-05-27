@@ -16,9 +16,21 @@ Chinese README: [README.md](README.md)
 - GitHub Actions runs lightweight checks on every push and can build Windows, macOS, and Linux artifacts on manual dispatch or `v*` tags.
 
 ## Demo Assets (From [Youtube](https://www.youtube.com/shorts/U9jxeRd87EQ))
+<table>
+<tr><th>Original English</th><th>Chinese dubbed</th></tr>
+<tr>
+<td>
+
 https://github.com/user-attachments/assets/bfd5a20d-4932-4f87-8d54-d2bc54a3b373
 
+</td>
+<td>
+
 https://github.com/user-attachments/assets/2b92b64f-e6a0-41c0-8f08-6389a95cce1d
+
+</td>
+</tr>
+</table>
 
 ## Requirements
 
