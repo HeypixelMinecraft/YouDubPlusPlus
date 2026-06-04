@@ -8,7 +8,7 @@ openai
 yt-dlp[default]
 dora-search>=0.1.12
 diffq>=0.2.4
-julius>=0.2.7
+julius>=0.2.8
 lameenc>=1.8.2
 openunmix
 openai-whisper
