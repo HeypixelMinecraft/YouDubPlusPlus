@@ -44,7 +44,7 @@ jobs:
           uv run python -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
 
   desktop:
-    name: Full desktop build
+    name: Full CUDA desktop build
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -52,14 +52,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            name: Windows desktop
-            artifact: YouDubPlusPlus-windows
-          - os: macos-latest
-            name: macOS desktop
-            artifact: YouDubPlusPlus-macos
+            name: Windows CUDA desktop
+            artifact: YouDubPlusPlus-windows-cuda-cu128
           - os: ubuntu-latest
-            name: Linux desktop
-            artifact: YouDubPlusPlus-linux
+            name: Linux CUDA desktop
+            artifact: YouDubPlusPlus-linux-cuda-cu128
 
     steps:
       - name: Checkout
@@ -92,14 +89,12 @@ jobs:
           uv pip install --upgrade pyinstaller
 
       - name: Install CUDA PyTorch
-        if: runner.os != 'macOS'
         run: |
           uv pip install -r requirements-torch-cu128.txt
 
-      - name: Install CPU PyTorch
-        if: runner.os == 'macOS'
+      - name: Verify CUDA PyTorch wheel
         run: |
-          uv pip install torch torchaudio
+          uv run python -c "import sys, torch; print(f'torch={torch.__version__}; torch_cuda={torch.version.cuda}; cuda_available={torch.cuda.is_available()}'); sys.exit(0 if torch.version.cuda else 1)"
 
       - name: Resolve Python executable
         id: python
