@@ -77,6 +77,7 @@ jobs:
           cache-dependency-glob: |
             requirements-ci.txt
             requirements-desktop-gpu.txt
+            requirements-torch-cu128.txt
 
       - name: Set up Python
         run: uv python install 3.11
@@ -90,7 +91,7 @@ jobs:
 
       - name: Install CUDA PyTorch
         run: |
-          uv pip install -r requirements-torch-cu128.txt
+          uv pip install --upgrade --force-reinstall -r requirements-torch-cu128.txt
 
       - name: Verify CUDA PyTorch wheel
         run: |
