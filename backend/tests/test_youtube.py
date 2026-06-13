@@ -1,5 +1,6 @@
 import pytest
 
+from backend.app.sources import detect_source
 from backend.app.youtube import (
     extract_video_id,
     is_bilibili_url,
@@ -31,6 +32,13 @@ def test_extract_video_id_from_bilibili_url():
 def test_is_bilibili_url():
     assert is_bilibili_url("https://www.bilibili.com/video/BV1xx411c7mD")
     assert not is_bilibili_url("https://www.youtube.com/watch?v=abcdefghijk")
+
+
+def test_youtube_source_uses_auto_asr_language():
+    source = detect_source("https://www.youtube.com/watch?v=abcdefghijk")
+
+    assert source.asr_language == "auto"
+    assert source.target_language == "zh"
 
 
 def test_extract_video_id_rejects_unknown():

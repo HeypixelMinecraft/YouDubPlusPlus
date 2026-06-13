@@ -8,7 +8,7 @@ from .config import COOKIE_DIR
 from .youtube import is_bilibili_url, is_local_en_to_zh_url, is_local_zh_to_en_url, is_youtube_url
 
 
-LANG_NAMES = {"en": "English", "zh": "Simplified Chinese"}
+LANG_NAMES = {"auto": "auto-detected language", "en": "English", "zh": "Simplified Chinese", "vi": "Vietnamese"}
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,7 @@ SOURCES: list[SourceConfig] = [
         matches=is_youtube_url,
         use_proxy=True,
         cookie_filename="youtube.txt",
-        asr_language="en",
+        asr_language="auto",
         target_language="zh",
     ),
     SourceConfig(

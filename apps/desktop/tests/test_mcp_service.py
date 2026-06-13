@@ -9,8 +9,10 @@ class FakeServer:
     def __init__(self, config):
         self.config = config
         self.should_exit = False
+        self.started = False
 
     def run(self) -> None:
+        self.started = True
         return None
 
 
@@ -18,6 +20,7 @@ def reset_service_state() -> None:
     mcp_service._server = None
     mcp_service._thread = None
     mcp_service._info = None
+    mcp_service._previous_env = None
 
 
 def test_start_mcp_service_returns_desktop_url(monkeypatch):
@@ -34,6 +37,8 @@ def test_start_mcp_service_returns_desktop_url(monkeypatch):
     assert mcp_service._server is not None
     assert mcp_service._server.config.host == "127.0.0.2"
     assert mcp_service._server.config.port == 9876
+    assert os.environ["YOUDUB_MCP_HOST"] == "127.0.0.2"
+    assert os.environ["YOUDUB_MCP_PORT"] == "9876"
     mcp_service.stop_mcp_service()
 
 
@@ -56,3 +61,19 @@ def test_stop_mcp_service_marks_server_for_shutdown(monkeypatch):
     assert server is not None
     assert server.should_exit is True
     assert "YOUDUB_DESKTOP_MCP_SERVER" not in os.environ
+    assert "YOUDUB_MCP_HOST" not in os.environ
+    assert "YOUDUB_MCP_PORT" not in os.environ
+
+
+def test_stop_mcp_service_restores_existing_environment(monkeypatch):
+    reset_service_state()
+    monkeypatch.setenv("YOUDUB_MCP_ENABLED", "true")
+    monkeypatch.setenv("YOUDUB_MCP_HOST", "127.0.0.9")
+    monkeypatch.setenv("YOUDUB_MCP_PORT", "9999")
+    monkeypatch.setattr(mcp_service.uvicorn, "Server", FakeServer)
+
+    mcp_service.start_mcp_service("127.0.0.3", 8888)
+    mcp_service.stop_mcp_service()
+
+    assert os.environ["YOUDUB_MCP_HOST"] == "127.0.0.9"
+    assert os.environ["YOUDUB_MCP_PORT"] == "9999"

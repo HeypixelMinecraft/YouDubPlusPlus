@@ -146,6 +146,11 @@ def _convert_segments(segments: list) -> list:
     ]
 
 
+def _transcribe_language(language: str) -> str | None:
+    cleaned = language.strip().lower()
+    return None if cleaned in {"", "auto"} else cleaned
+
+
 def recognize_speech(vocals_file: Path, session: Path, language: str, log: LogFn | None = None) -> Path:
     metadata_dir = session / "metadata"
     metadata_dir.mkdir(parents=True, exist_ok=True)
@@ -162,15 +167,18 @@ def recognize_speech(vocals_file: Path, session: Path, language: str, log: LogFn
     model = _load_model(log)
     if log:
         log("Whisper transcription started")
+    transcribe_language = _transcribe_language(language)
     with _whisper_progress_logger(log):
-        result = model.transcribe(
-            str(vocals_file),
-            language=language,
-            word_timestamps=True,
-            verbose=False,
-        )
+        transcribe_kwargs = {
+            "word_timestamps": True,
+            "verbose": False,
+        }
+        if transcribe_language is not None:
+            transcribe_kwargs["language"] = transcribe_language
+        result = model.transcribe(str(vocals_file), **transcribe_kwargs)
     if log:
-        log("Whisper transcription finished; converting segments")
+        detected_language = result.get("language") or transcribe_language or "auto"
+        log(f"Whisper transcription finished; detected language={detected_language}; converting segments")
 
     utterances = _convert_segments(result.get("segments", []))
     if not utterances:
@@ -180,6 +188,7 @@ def recognize_speech(vocals_file: Path, session: Path, language: str, log: LogFn
     payload = {
         "audio_info": {"duration": duration_ms},
         "result": {
+            "language": result.get("language") or transcribe_language or "auto",
             "text": (result.get("text") or "").strip(),
             "utterances": utterances,
         },

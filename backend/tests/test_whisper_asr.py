@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from types import SimpleNamespace
 
@@ -56,3 +57,57 @@ def test_whisper_progress_logger_replaces_and_restores_tqdm(monkeypatch):
         "Whisper transcription progress: 10%",
         "Whisper transcription progress: 100%",
     ]
+
+
+def test_recognize_speech_omits_language_for_auto(monkeypatch, tmp_path):
+    vocals = tmp_path / "vocals.wav"
+    vocals.write_bytes(b"fake wav")
+    session = tmp_path / "session"
+    seen = {}
+
+    class FakeModel:
+        def transcribe(self, audio_path, **kwargs):
+            seen["audio_path"] = audio_path
+            seen["kwargs"] = kwargs
+            return {
+                "language": "vi",
+                "text": "Xin chao",
+                "segments": [
+                    {"text": "Xin chao", "start": 0.0, "end": 1.0, "words": []},
+                ],
+            }
+
+    monkeypatch.setattr(whisper_asr, "_load_model", lambda log=None: FakeModel())
+    monkeypatch.setattr(whisper_asr.AudioSegment, "from_file", lambda path: b"0" * 1000)
+
+    out = whisper_asr.recognize_speech(vocals, session, "auto")
+    data = json.loads(out.read_text(encoding="utf-8"))
+
+    assert "language" not in seen["kwargs"]
+    assert seen["kwargs"]["word_timestamps"] is True
+    assert data["result"]["language"] == "vi"
+
+
+def test_recognize_speech_passes_fixed_language(monkeypatch, tmp_path):
+    vocals = tmp_path / "vocals.wav"
+    vocals.write_bytes(b"fake wav")
+    session = tmp_path / "session"
+    seen = {}
+
+    class FakeModel:
+        def transcribe(self, audio_path, **kwargs):
+            seen["kwargs"] = kwargs
+            return {
+                "language": "zh",
+                "text": "你好",
+                "segments": [
+                    {"text": "你好", "start": 0.0, "end": 1.0, "words": []},
+                ],
+            }
+
+    monkeypatch.setattr(whisper_asr, "_load_model", lambda log=None: FakeModel())
+    monkeypatch.setattr(whisper_asr.AudioSegment, "from_file", lambda path: b"0" * 1000)
+
+    whisper_asr.recognize_speech(vocals, session, "zh")
+
+    assert seen["kwargs"]["language"] == "zh"

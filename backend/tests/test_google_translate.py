@@ -28,6 +28,7 @@ class FakeResponse:
 def _write_asr(path) -> None:
     payload = {
         "result": {
+            "language": "vi",
             "utterances": [
                 {"text": "Hello.", "start_time": 0, "end_time": 1000},
                 {
@@ -55,7 +56,7 @@ def test_translate_batch_uses_google_response(monkeypatch):
 
     assert out == ["zh:Hello.", "zh:World."]
     assert seen[0][0] == google_translate.GOOGLE_TRANSLATE_URL
-    assert seen[0][1]["sl"] == "en"
+    assert seen[0][1]["sl"] == "auto"
     assert seen[0][1]["tl"] == "zh"
 
 
@@ -74,7 +75,11 @@ def test_translate_asr_writes_existing_translation_schema(tmp_path, monkeypatch)
     metadata.mkdir()
     asr_file = metadata / "asr.json"
     _write_asr(asr_file)
-    monkeypatch.setattr(google_translate, "translate_batch", lambda texts, source, concurrency: [f"zh:{t}" for t in texts])
+    monkeypatch.setattr(
+        google_translate,
+        "translate_batch",
+        lambda texts, source, concurrency, source_language: [f"zh:{t}" for t in texts],
+    )
 
     out = google_translate.translate_asr(asr_file, tmp_path, {"translate_concurrency": "1"}, YT_SOURCE)
     items = json.loads(out.read_text(encoding="utf-8"))["translation"]
@@ -82,7 +87,7 @@ def test_translate_asr_writes_existing_translation_schema(tmp_path, monkeypatch)
     assert out.name == "translation.zh.json"
     assert items[0]["src"] == "Hello."
     assert items[0]["dst"] == "zh:Hello."
-    assert items[0]["src_lang"] == "en"
+    assert items[0]["src_lang"] == "vi"
     assert items[0]["dst_lang"] == "zh"
     assert items[0]["speaker"] == "1"
     assert items[1]["speaker"] == "2"

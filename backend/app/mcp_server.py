@@ -5,6 +5,7 @@ from typing import Any
 from starlette.responses import JSONResponse
 
 from . import database, worker
+from .config import mcp_host, mcp_port
 from .task_actions import rerun_task as rerun_existing_task
 from .task_actions import resume_task as resume_failed_task
 from .youtube import extract_video_id
@@ -83,7 +84,7 @@ def create_mcp_server():
     if FastMCP is None:
         return None
 
-    mcp = FastMCP("YouDubPlusPlus")
+    mcp = FastMCP("YouDubPlusPlus", host=mcp_host(), port=mcp_port())
     mcp.tool()(list_tasks)
     mcp.tool()(get_task)
     mcp.tool()(get_current_task)

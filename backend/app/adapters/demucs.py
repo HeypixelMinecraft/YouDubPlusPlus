@@ -9,6 +9,16 @@ from typing import Any, Callable
 from ..config import REPO_ROOT, device
 
 
+def _torch_runtime_error_message(detail: str) -> str:
+    return (
+        "Demucs could not load PyTorch. Restart the desktop app if PyTorch was installed or upgraded "
+        "while YouDubPlusPlus was open. If it still fails, reinstall the matching Torch runtime, for example: "
+        "uv pip install -r requirements-torch-cu128.txt. "
+        "On Windows, also make sure the Microsoft Visual C++ Redistributable and NVIDIA driver are installed. "
+        f"Original error: {detail}"
+    )
+
+
 def _device() -> str:
     value = device()
     if value != "auto":
@@ -98,14 +108,11 @@ def separate_audio(video_file: Path, session: Path, log: Callable[[str], None] |
     try:
         demucs_api = import_module("demucs.api")
     except ModuleNotFoundError as exc:
-        if exc.name == "torch":
-            raise RuntimeError(
-                "Demucs requires PyTorch, but torch is not installed in this runtime. "
-                "For CUDA 12.6 install it with: "
-                "uv pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu126. "
-                "For a bundled desktop app, rebuild with YOUDUB_BUNDLE_GPU_DEPS=1 after installing GPU dependencies."
-            ) from exc
+        if exc.name == "torch" or "torch" in str(exc).lower():
+            raise RuntimeError(_torch_runtime_error_message(str(exc))) from exc
         raise
+    except OSError as exc:
+        raise RuntimeError(_torch_runtime_error_message(str(exc))) from exc
     _disable_demucs_progress(demucs_api)
     Separator = demucs_api.Separator
     save_audio = demucs_api.save_audio

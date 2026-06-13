@@ -37,13 +37,13 @@ def _extract_translation(payload: Any) -> str:
     return text
 
 
-def translate_sentence(text: str, source: SourceConfig) -> str:
+def translate_sentence(text: str, source: SourceConfig, source_language: str = "auto") -> str:
     stripped = text.strip()
     if not stripped:
         return ""
     params = {
         "client": "gtx",
-        "sl": source.asr_language,
+        "sl": source_language or "auto",
         "tl": source.target_language,
         "dt": "t",
         "q": stripped,
@@ -56,11 +56,22 @@ def translate_sentence(text: str, source: SourceConfig) -> str:
     return _extract_translation(response.json())
 
 
-def translate_batch(texts: list[str], source: SourceConfig, *, concurrency: int = DEFAULT_CONCURRENCY) -> list[str]:
+def translate_batch(
+    texts: list[str],
+    source: SourceConfig,
+    *,
+    concurrency: int = DEFAULT_CONCURRENCY,
+    source_language: str = "auto",
+) -> list[str]:
     if not texts:
         return []
     with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
-        return list(pool.map(lambda text: translate_sentence(text, source), texts))
+        return list(pool.map(lambda text: translate_sentence(text, source, source_language), texts))
+
+
+def _asr_language(data: dict[str, Any]) -> str:
+    language = str(data.get("result", {}).get("language") or "").strip().lower()
+    return language or "auto"
 
 
 def translate_asr(
@@ -76,13 +87,19 @@ def translate_asr(
     data = json.loads(asr_file.read_text(encoding="utf-8"))
     utterances = data["result"]["utterances"]
     texts = [u["text"].strip() for u in utterances]
-    dst_list = translate_batch(texts, source, concurrency=_concurrency_from(settings))
+    src_lang = _asr_language(data)
+    dst_list = translate_batch(
+        texts,
+        source,
+        concurrency=_concurrency_from(settings),
+        source_language="auto",
+    )
 
     translation = [
         {
             "src": text,
             "dst": dst,
-            "src_lang": source.asr_language,
+            "src_lang": src_lang,
             "dst_lang": source.target_language,
             "start_time": utt["start_time"],
             "end_time": utt["end_time"],

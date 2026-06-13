@@ -10,6 +10,13 @@ def _asset_path(repo_root: Path, name: str) -> Path:
     return repo_root / "apps" / "desktop" / "assets" / name
 
 
+def _preload_torch_runtime() -> None:
+    try:
+        import torch  # noqa: F401
+    except ModuleNotFoundError:
+        return
+
+
 def main() -> int:
     package_root = Path(__file__).resolve().parents[1]
     repo_root = package_root.parents[1]
@@ -24,6 +31,8 @@ def main() -> int:
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("YouDubPlusPlus.Desktop")
         except Exception:
             pass
+
+    _preload_torch_runtime()
 
     from PyQt5.QtGui import QIcon
     from PyQt5.QtWidgets import QApplication, QMessageBox
