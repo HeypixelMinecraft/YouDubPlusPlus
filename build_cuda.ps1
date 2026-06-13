@@ -38,6 +38,6 @@ if (-not $SkipCudaCheck) {
 $env:YOUDUB_BUNDLE_GPU_DEPS = "1"
 & $PythonExe -m compileall apps/desktop/youdub_desktop apps/desktop/main.py backend/app
 & $PythonExe -c "import importlib; modules=['PyQt5','PyQt5.QtCore','PyQt5.QtGui','PyQt5.QtWidgets','PyQt5.sip','qfluentwidgets','torch','torchaudio','dora','dora.log','diffq','einops','hydra','hydra_colorlog','julius','lameenc','omegaconf','openunmix','openunmix.filtering','tqdm','yaml','whisper','voxcpm','modelscope','huggingface_hub']; [importlib.import_module(m) for m in modules]; print('desktop dependencies ok')"
-& $PythonExe -m PyInstaller --clean --noconfirm --noupx apps/desktop/YouDubPlusPlus.spec
+& $PythonExe -m PyInstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
 
 Write-Host "Done: dist/YouDubPlusPlus"

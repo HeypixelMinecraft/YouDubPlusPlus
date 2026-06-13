@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+from importlib.metadata import distributions
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
@@ -8,12 +9,34 @@ from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_sub
 ROOT = Path(SPECPATH).parents[1]
 BUNDLE_GPU_DEPS = os.getenv("YOUDUB_BUNDLE_GPU_DEPS", "").lower() in {"1", "true", "yes", "on"}
 
+
+def _collect_nvidia_packages():
+    datas = []
+    binaries = []
+    hiddenimports = []
+    seen = set()
+    for dist in distributions():
+        name = (dist.metadata.get("Name") or "").strip()
+        if not name.lower().startswith("nvidia"):
+            continue
+        module = name.replace("-", "_")
+        if module in seen:
+            continue
+        seen.add(module)
+        pkg_datas, pkg_binaries, pkg_hiddenimports = collect_all(module)
+        datas.extend(pkg_datas)
+        binaries.extend(pkg_binaries)
+        hiddenimports.extend(pkg_hiddenimports)
+    return datas, binaries, hiddenimports
+
+
 pyqt_datas, pyqt_binaries, pyqt_hiddenimports = collect_all("PyQt5")
 qfw_datas, qfw_binaries, qfw_hiddenimports = collect_all("qfluentwidgets")
 audiostretchy_datas = collect_data_files("audiostretchy", includes=["interface/**/*"])
 
 heavy_hiddenimports = []
 heavy_datas = []
+heavy_binaries = []
 heavy_excludes = [
     "torch",
     "torchaudio",
@@ -31,11 +54,18 @@ heavy_excludes = [
     "huggingface_hub",
 ]
 
+runtime_hooks = []
+module_collection_mode = {
+    "voxcpm": "pyz+py",
+}
+
 if BUNDLE_GPU_DEPS:
-    heavy_datas = collect_data_files("whisper")
+    torch_datas, torch_binaries, torch_hiddenimports = collect_all("torch")
+    torchaudio_datas, torchaudio_binaries, torchaudio_hiddenimports = collect_all("torchaudio")
+    nvidia_datas, nvidia_binaries, nvidia_hiddenimports = _collect_nvidia_packages()
+    heavy_datas = collect_data_files("whisper") + torch_datas + torchaudio_datas + nvidia_datas
+    heavy_binaries = torch_binaries + torchaudio_binaries + nvidia_binaries
     heavy_hiddenimports = [
-        "torch",
-        "torchaudio",
         "dora",
         "dora.log",
         "dora.distrib",
@@ -52,14 +82,17 @@ if BUNDLE_GPU_DEPS:
         "yaml",
         "whisper",
         "voxcpm",
-    ]
+    ] + torch_hiddenimports + torchaudio_hiddenimports + nvidia_hiddenimports
     heavy_excludes = []
+    runtime_hooks = [str(ROOT / "apps" / "desktop" / "pyi_rth_torch.py")]
+    module_collection_mode["torch"] = "pyz+py"
+    module_collection_mode["torchaudio"] = "pyz+py"
 
 
 a = Analysis(
     [str(ROOT / "apps" / "desktop" / "main.py")],
     pathex=[str(ROOT), str(ROOT / "apps" / "desktop")],
-    binaries=pyqt_binaries + qfw_binaries,
+    binaries=pyqt_binaries + qfw_binaries + heavy_binaries,
     datas=[
         (str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.svg"), "assets"),
         (str(ROOT / "apps" / "desktop" / "assets" / "youdub-icon.ico"), "assets"),
@@ -108,12 +141,10 @@ a = Analysis(
     + heavy_hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=runtime_hooks,
     excludes=heavy_excludes,
     noarchive=False,
-    module_collection_mode={
-        "voxcpm": "pyz+py",
-    },
+    module_collection_mode=module_collection_mode,
     optimize=0,
 )
 pyz = PYZ(a.pure)

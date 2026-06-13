@@ -122,7 +122,30 @@ jobs:
         env:
           YOUDUB_BUNDLE_GPU_DEPS: "1"
         run: |
-          & "${{ steps.python.outputs.exe }}" -m PyInstaller --clean --noconfirm --noupx apps/desktop/YouDubPlusPlus.spec
+          & "${{ steps.python.outputs.exe }}" -m PyInstaller --clean --noconfirm apps/desktop/YouDubPlusPlus.spec
+
+      - name: Verify bundled torch imports
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $internal = Join-Path $PWD "dist/YouDubPlusPlus/_internal"
+          & "${{ steps.python.outputs.exe }}" -c @"
+          import os, sys
+          sys.path.insert(0, r'$internal')
+          if sys.platform == 'win32' and hasattr(os, 'add_dll_directory'):
+              for p in [r'$internal', os.path.join(r'$internal', 'torch', 'lib')]:
+                  if os.path.isdir(p):
+                      os.add_dll_directory(p)
+              nvidia = os.path.join(r'$internal', 'nvidia')
+              if os.path.isdir(nvidia):
+                  for name in os.listdir(nvidia):
+                      for sub in ('bin', 'lib'):
+                          p = os.path.join(nvidia, name, sub)
+                          if os.path.isdir(p):
+                              os.add_dll_directory(p)
+          import torch
+          print(f'bundled torch ok: {torch.__version__}; cuda={torch.version.cuda}')
+          "@
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
