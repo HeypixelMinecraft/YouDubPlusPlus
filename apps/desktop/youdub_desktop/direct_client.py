@@ -15,6 +15,8 @@ from backend.app.adapters.openai_translate import list_models as list_openai_mod
 from backend.app.config import WORKFOLDER, YOUTUBE_COOKIE_PATH, ensure_runtime_dirs
 from backend.app.pipeline import run_task
 from backend.app.sanitize import sanitize_text
+from backend.app.task_actions import continue_after_review
+from backend.app.translation_io import load_translation_segments, save_translation_segments
 from backend.app.youtube import extract_video_id, is_local_upload_url
 
 
@@ -153,9 +155,9 @@ class DirectClient:
     def get_translate_settings(self) -> dict[str, Any]:
         return database.get_translate_settings()
 
-    def save_translate_settings(self, mode: str) -> dict[str, Any]:
+    def save_translate_settings(self, mode: str, review_enabled: str | None = None) -> dict[str, Any]:
         try:
-            database.save_translate_settings(mode)
+            database.save_translate_settings(mode, review_enabled=review_enabled)
         except ValueError as exc:
             raise RuntimeError(str(exc)) from exc
         return self.get_translate_settings()
@@ -212,6 +214,87 @@ class DirectClient:
             "backend": backend,
             "log": "\n".join(log_lines),
         }
+
+    def separate_vocals(self, media_path: Path) -> dict[str, Any]:
+        media = media_path.resolve()
+        if not media.exists():
+            raise RuntimeError("Media file not found.")
+
+        session = WORKFOLDER / "audio_tool" / "separate" / f"{sanitize_text(media.stem) or 'media'}_{uuid.uuid4().hex[:8]}"
+        session.mkdir(parents=True, exist_ok=True)
+
+        log_lines: list[str] = []
+
+        def log(message: str) -> None:
+            log_lines.append(message)
+
+        from backend.app.adapters.demucs import separate_audio
+
+        vocals_file, bgm_file = separate_audio(media, session, log=log)
+        return {
+            "session_path": str(session),
+            "vocals_path": str(vocals_file),
+            "bgm_path": str(bgm_file),
+            "log": "\n".join(log_lines),
+        }
+
+    def split_audio_segments(self, audio_path: Path, segments_path: Path) -> dict[str, Any]:
+        audio = audio_path.resolve()
+        segments = segments_path.resolve()
+        if not audio.exists():
+            raise RuntimeError("Audio file not found.")
+        if not segments.exists():
+            raise RuntimeError("Segments JSON not found.")
+
+        session = WORKFOLDER / "audio_tool" / "split" / f"{sanitize_text(audio.stem) or 'audio'}_{uuid.uuid4().hex[:8]}"
+        session.mkdir(parents=True, exist_ok=True)
+
+        log_lines: list[str] = []
+
+        def log(message: str) -> None:
+            log_lines.append(message)
+
+        from backend.app.adapters.audio import split_audio_by_segments_file
+
+        output_dir = split_audio_by_segments_file(audio, segments, session)
+        segment_count = len(list(output_dir.glob("*.wav")))
+        log(f"Created {segment_count} audio segments -> {output_dir}")
+        return {
+            "session_path": str(session),
+            "output_dir": str(output_dir),
+            "segment_count": segment_count,
+            "log": "\n".join(log_lines),
+        }
+
+    def get_task_translation(self, task_id: str) -> dict[str, Any]:
+        task = self.get_task(task_id)
+        session_path = task.get("session_path")
+        if not session_path:
+            raise RuntimeError("Task session is missing.")
+        path, segments = load_translation_segments(Path(session_path))
+        return {"path": str(path), "segments": segments}
+
+    def save_task_translation(self, task_id: str, segments: list[dict[str, Any]]) -> dict[str, Any]:
+        task = self.get_task(task_id)
+        if task["status"] != "awaiting_review":
+            raise RuntimeError("Translation can only be edited while awaiting review.")
+        session_path = task.get("session_path")
+        if not session_path:
+            raise RuntimeError("Task session is missing.")
+        path, _ = load_translation_segments(Path(session_path))
+        try:
+            save_translation_segments(path, segments)
+        except ValueError as exc:
+            raise RuntimeError(str(exc)) from exc
+        return self.get_task_translation(task_id)
+
+    def continue_after_review(self, task_id: str) -> dict[str, Any]:
+        try:
+            return continue_after_review(task_id)
+        except ValueError as exc:
+            raise RuntimeError("Task not found.") from exc
+        except RuntimeError:
+            raise
 
 
 def _is_inside_workfolder(path: Path) -> bool:

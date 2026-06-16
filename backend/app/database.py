@@ -12,6 +12,18 @@ from .stages import STAGES
 
 ACTIVE_STATUSES = ("queued", "running")
 TRANSLATE_MODES = {"openai", "google", "youdao"}
+REVIEW_ENABLED_VALUES = {"true", "false"}
+
+
+def _normalize_review_enabled(value: str) -> str:
+    cleaned = (value or "").strip().lower() or "true"
+    if cleaned in {"1", "yes", "on"}:
+        return "true"
+    if cleaned in {"0", "no", "off"}:
+        return "false"
+    if cleaned not in REVIEW_ENABLED_VALUES:
+        raise ValueError("Translation review must be enabled or disabled.")
+    return cleaned
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -73,9 +85,13 @@ def init_db() -> None:
                 (f"ytdlp.{key}", value, now_iso()),
             )
         for key, value in translate_defaults().items():
+            if key == "review_enabled":
+                normalized = _normalize_review_enabled(value)
+            else:
+                normalized = _normalize_translate_mode(value)
             conn.execute(
                 "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
-                (f"translate.{key}", _normalize_translate_mode(value), now_iso()),
+                (f"translate.{key}", normalized, now_iso()),
             )
         existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(tasks)").fetchall()}
         if "title" not in existing_columns:
@@ -297,11 +313,17 @@ def get_translate_settings() -> dict[str, str]:
         mode = _normalize_translate_mode(get_setting("translate.mode", defaults["mode"]))
     except ValueError:
         mode = "openai"
-    return {"mode": mode}
+    try:
+        review_enabled = _normalize_review_enabled(get_setting("translate.review_enabled", defaults["review_enabled"]))
+    except ValueError:
+        review_enabled = defaults["review_enabled"]
+    return {"mode": mode, "review_enabled": review_enabled}
 
 
-def save_translate_settings(mode: str) -> None:
+def save_translate_settings(mode: str, review_enabled: str | None = None) -> None:
     set_setting("translate.mode", _normalize_translate_mode(mode))
+    if review_enabled is not None:
+        set_setting("translate.review_enabled", _normalize_review_enabled(review_enabled))
 
 
 def get_openai_settings() -> dict[str, str]:

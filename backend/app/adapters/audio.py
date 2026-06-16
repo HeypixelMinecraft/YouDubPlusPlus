@@ -34,6 +34,27 @@ def split_audio_by_translation(vocals_file: Path, translation_file: Path, sessio
     return output_dir
 
 
+def _load_segments(data: dict) -> list[dict]:
+    if "translation" in data:
+        return data["translation"]
+    utterances = data.get("result", {}).get("utterances")
+    if utterances:
+        return utterances
+    raise RuntimeError("Segments JSON must contain 'translation' or 'result.utterances'.")
+
+
+def split_audio_by_segments_file(audio_file: Path, segments_file: Path, session: Path) -> Path:
+    data = json.loads(segments_file.read_text(encoding="utf-8"))
+    segments = _load_segments(data)
+    if not segments:
+        raise RuntimeError("No segments found in JSON.")
+
+    wrapper_file = session / "metadata" / "segments.json"
+    wrapper_file.parent.mkdir(parents=True, exist_ok=True)
+    wrapper_file.write_text(json.dumps({"translation": segments}, ensure_ascii=False, indent=2), encoding="utf-8")
+    return split_audio_by_translation(audio_file, wrapper_file, session)
+
+
 def _audio_duration(file: Path) -> tuple[float, int]:
     y, sr = librosa.load(str(file), sr=None)
     return len(y) / sr, sr

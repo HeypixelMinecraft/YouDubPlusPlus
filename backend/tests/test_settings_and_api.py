@@ -324,7 +324,7 @@ def test_translate_settings_default_to_openai(monkeypatch, tmp_path):
     response = client.get("/api/settings/translate")
 
     assert response.status_code == 200
-    assert response.json() == {"mode": "openai"}
+    assert response.json() == {"mode": "openai", "review_enabled": "true"}
 
 
 def test_translate_settings_persist_google(monkeypatch, tmp_path):
@@ -335,8 +335,8 @@ def test_translate_settings_persist_google(monkeypatch, tmp_path):
     loaded = client.get("/api/settings/translate")
 
     assert saved.status_code == 200
-    assert saved.json() == {"mode": "google"}
-    assert loaded.json() == {"mode": "google"}
+    assert saved.json() == {"mode": "google", "review_enabled": "true"}
+    assert loaded.json() == {"mode": "google", "review_enabled": "true"}
 
 
 def test_translate_settings_persist_youdao(monkeypatch, tmp_path):
@@ -347,8 +347,8 @@ def test_translate_settings_persist_youdao(monkeypatch, tmp_path):
     loaded = client.get("/api/settings/translate")
 
     assert saved.status_code == 200
-    assert saved.json() == {"mode": "youdao"}
-    assert loaded.json() == {"mode": "youdao"}
+    assert saved.json() == {"mode": "youdao", "review_enabled": "true"}
+    assert loaded.json() == {"mode": "youdao", "review_enabled": "true"}
 
 
 def test_translate_settings_reject_invalid_mode(monkeypatch, tmp_path):

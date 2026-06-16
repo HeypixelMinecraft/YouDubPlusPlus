@@ -73,6 +73,15 @@ class AppWindow(FluentWindow):
         self.tts_reference_file: Path | None = None
         self.tts_output_file: Path | None = None
         self._tts_busy = False
+        self.separate_media_file: Path | None = None
+        self.separate_vocals_file: Path | None = None
+        self.separate_bgm_file: Path | None = None
+        self._separate_busy = False
+        self.split_audio_file: Path | None = None
+        self.split_segments_file: Path | None = None
+        self.split_output_dir: Path | None = None
+        self._split_busy = False
+        self._translation_segments: list[dict[str, Any]] = []
         self._refresh_busy = False
         self._last_log_text = ""
         self._last_log_task_id: str | None = None
@@ -86,11 +95,13 @@ class AppWindow(FluentWindow):
 
         self.tasks_page = self._build_tasks_page()
         self.detail_page = self._build_detail_page()
+        self.audio_page = self._build_audio_page()
         self.tts_page = self._build_tts_page()
         self.mcp_page = self._build_mcp_page()
         self.settings_page = self._build_settings_page()
         self.addSubInterface(self.tasks_page, FIF.HOME, self._t("Tasks"))
         self.addSubInterface(self.detail_page, FIF.VIDEO, self._t("Detail"))
+        self.addSubInterface(self.audio_page, FIF.ALBUM, self._t("Audio tool"))
         self.addSubInterface(self.tts_page, FIF.MUSIC, self._t("TTS"))
         self.addSubInterface(self.mcp_page, FIF.CONNECT, self._t("MCP"))
         self.addSubInterface(self.settings_page, FIF.SETTING, self._t("Settings"))
@@ -201,6 +212,33 @@ class AppWindow(FluentWindow):
         overview_layout.addLayout(actions)
         layout.addWidget(overview)
 
+        self.review_card = CardWidget()
+        review_layout = QVBoxLayout(self.review_card)
+        review_layout.setContentsMargins(22, 18, 22, 18)
+        review_layout.setSpacing(12)
+        review_layout.addWidget(StrongBodyLabel(self._t("Translation review")))
+        review_layout.addWidget(BodyLabel(self._t("Review and edit translations before TTS continues.")))
+        self.translation_table = TableWidget()
+        self.translation_table.setColumnCount(4)
+        self.translation_table.setHorizontalHeaderLabels(
+            [self._t("#"), self._t("Source"), self._t("Translation"), self._t("Time")]
+        )
+        self.translation_table.verticalHeader().hide()
+        review_layout.addWidget(self.translation_table, 1)
+        review_actions = QHBoxLayout()
+        self.save_translation_button = PushButton(self._t("Save translation"))
+        self.save_translation_button.setIcon(FIF.SAVE)
+        self.save_translation_button.clicked.connect(self.save_translation_review)
+        self.continue_review_button = PrimaryPushButton(self._t("Continue pipeline"))
+        self.continue_review_button.setIcon(FIF.PLAY)
+        self.continue_review_button.clicked.connect(self.continue_after_translation_review)
+        review_actions.addWidget(self.save_translation_button)
+        review_actions.addWidget(self.continue_review_button)
+        review_actions.addStretch(1)
+        review_layout.addLayout(review_actions)
+        self.review_card.hide()
+        layout.addWidget(self.review_card, 2)
+
         self.stages_table = TableWidget()
         self.stages_table.setColumnCount(4)
         self.stages_table.setHorizontalHeaderLabels(
@@ -214,6 +252,93 @@ class AppWindow(FluentWindow):
         self.log_box.setReadOnly(True)
         self.log_box.setPlaceholderText(self._t("Logs will appear when a task starts."))
         layout.addWidget(self.log_box, 1)
+        return page
+
+    def _build_audio_page(self) -> QWidget:
+        page = _page("audioPage")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 26, 28, 26)
+        layout.setSpacing(18)
+        layout.addWidget(SubtitleLabel(self._t("Audio tool")))
+
+        separate_card = CardWidget()
+        separate_form = QGridLayout(separate_card)
+        separate_form.setContentsMargins(22, 18, 22, 18)
+        separate_form.setHorizontalSpacing(14)
+        separate_form.setVerticalSpacing(12)
+
+        self.separate_media_label = BodyLabel(self._t("No media file selected"))
+        choose_media = PushButton(self._t("Choose media file"))
+        choose_media.setIcon(FIF.FOLDER)
+        choose_media.clicked.connect(self.choose_separate_media)
+        self.separate_vocals_label = BodyLabel(self._t("Vocals output will appear here."))
+        self.separate_bgm_label = BodyLabel(self._t("BGM output will appear here."))
+        self.separate_button = PrimaryPushButton(self._t("Separate vocals"))
+        self.separate_button.setIcon(FIF.PLAY)
+        self.separate_button.clicked.connect(self.run_vocal_separation)
+        open_vocals = PushButton(self._t("Open vocals"))
+        open_vocals.setIcon(FIF.MUSIC)
+        open_vocals.clicked.connect(self.open_separate_vocals)
+        open_bgm = PushButton(self._t("Open BGM"))
+        open_bgm.setIcon(FIF.VOLUME)
+        open_bgm.clicked.connect(self.open_separate_bgm)
+        use_vocals = PushButton(self._t("Use vocals for slicing"))
+        use_vocals.setIcon(FIF.SYNC)
+        use_vocals.clicked.connect(self.use_separated_vocals_for_split)
+
+        separate_form.addWidget(StrongBodyLabel(self._t("Vocal separation")), 0, 0, 1, 4)
+        separate_form.addWidget(StrongBodyLabel(self._t("Media file")), 1, 0)
+        separate_form.addWidget(self.separate_media_label, 1, 1)
+        separate_form.addWidget(choose_media, 1, 2)
+        separate_form.addWidget(self.separate_button, 1, 3)
+        separate_form.addWidget(StrongBodyLabel(self._t("Vocals")), 2, 0)
+        separate_form.addWidget(self.separate_vocals_label, 2, 1)
+        separate_form.addWidget(open_vocals, 2, 2)
+        separate_form.addWidget(use_vocals, 2, 3)
+        separate_form.addWidget(StrongBodyLabel(self._t("BGM")), 3, 0)
+        separate_form.addWidget(self.separate_bgm_label, 3, 1)
+        separate_form.addWidget(open_bgm, 3, 2)
+        layout.addWidget(separate_card)
+
+        split_card = CardWidget()
+        split_form = QGridLayout(split_card)
+        split_form.setContentsMargins(22, 18, 22, 18)
+        split_form.setHorizontalSpacing(14)
+        split_form.setVerticalSpacing(12)
+
+        self.split_audio_label = BodyLabel(self._t("No audio file selected"))
+        choose_split_audio = PushButton(self._t("Choose audio file"))
+        choose_split_audio.setIcon(FIF.FOLDER)
+        choose_split_audio.clicked.connect(self.choose_split_audio)
+        self.split_segments_label = BodyLabel(self._t("No segments JSON selected"))
+        choose_segments = PushButton(self._t("Choose segments JSON"))
+        choose_segments.setIcon(FIF.FOLDER)
+        choose_segments.clicked.connect(self.choose_split_segments)
+        self.split_output_label = BodyLabel(self._t("Segments output will appear here."))
+        self.split_button = PrimaryPushButton(self._t("Split audio"))
+        self.split_button.setIcon(FIF.PLAY)
+        self.split_button.clicked.connect(self.run_audio_split)
+        open_segments = PushButton(self._t("Open segments folder"))
+        open_segments.setIcon(FIF.FOLDER)
+        open_segments.clicked.connect(self.open_split_output)
+
+        split_form.addWidget(StrongBodyLabel(self._t("Audio slicing")), 0, 0, 1, 4)
+        split_form.addWidget(StrongBodyLabel(self._t("Audio file")), 1, 0)
+        split_form.addWidget(self.split_audio_label, 1, 1)
+        split_form.addWidget(choose_split_audio, 1, 2)
+        split_form.addWidget(self.split_button, 1, 3)
+        split_form.addWidget(StrongBodyLabel(self._t("Segments JSON")), 2, 0)
+        split_form.addWidget(self.split_segments_label, 2, 1)
+        split_form.addWidget(choose_segments, 2, 2)
+        split_form.addWidget(open_segments, 2, 3)
+        split_form.addWidget(StrongBodyLabel(self._t("Output folder")), 3, 0)
+        split_form.addWidget(self.split_output_label, 3, 1, 1, 3)
+        layout.addWidget(split_card)
+
+        self.audio_log_box = PlainTextEdit()
+        self.audio_log_box.setReadOnly(True)
+        self.audio_log_box.setPlaceholderText(self._t("Audio tool logs will appear here."))
+        layout.addWidget(self.audio_log_box, 1)
         return page
 
     def _build_tts_page(self) -> QWidget:
@@ -343,6 +468,9 @@ class AppWindow(FluentWindow):
         self.translation_mode_combo.addItem("Google Translate", userData="google")
         self.translation_mode_combo.addItem("Youdao Translate", userData="youdao")
         self.translation_mode_combo.currentIndexChanged.connect(self._update_translation_settings_visibility)
+        self.review_combo = ComboBox()
+        self.review_combo.addItem(self._t("Enabled"), userData="true")
+        self.review_combo.addItem(self._t("Disabled"), userData="false")
         self.base_url_input = LineEdit()
         self.api_key_input = LineEdit()
         self.api_key_input.setEchoMode(LineEdit.Password)
@@ -377,17 +505,20 @@ class AppWindow(FluentWindow):
         grid.addWidget(self.proxy_input, 3, 1)
         grid.addWidget(StrongBodyLabel(self._t("Translation mode")), 4, 0)
         grid.addWidget(self.translation_mode_combo, 4, 1)
-        grid.addWidget(openai_base_label, 5, 0)
-        grid.addWidget(self.base_url_input, 5, 1, 1, 3)
-        grid.addWidget(openai_key_label, 6, 0)
-        grid.addWidget(self.api_key_input, 6, 1, 1, 3)
-        grid.addWidget(openai_model_label, 7, 0)
-        grid.addWidget(self.model_input, 7, 1)
-        grid.addWidget(self.models_combo, 7, 2)
-        grid.addWidget(load_button, 7, 3)
-        grid.addWidget(StrongBodyLabel(self._t("Translate concurrency")), 8, 0)
-        grid.addWidget(self.concurrency_input, 8, 1)
-        grid.addWidget(save_button, 9, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Translation review")), 5, 0)
+        grid.addWidget(self.review_combo, 5, 1)
+        grid.addWidget(BodyLabel(self._t("Pause after translation for manual proofreading.")), 5, 2, 1, 2)
+        grid.addWidget(openai_base_label, 6, 0)
+        grid.addWidget(self.base_url_input, 6, 1, 1, 3)
+        grid.addWidget(openai_key_label, 7, 0)
+        grid.addWidget(self.api_key_input, 7, 1, 1, 3)
+        grid.addWidget(openai_model_label, 8, 0)
+        grid.addWidget(self.model_input, 8, 1)
+        grid.addWidget(self.models_combo, 8, 2)
+        grid.addWidget(load_button, 8, 3)
+        grid.addWidget(StrongBodyLabel(self._t("Translate concurrency")), 9, 0)
+        grid.addWidget(self.concurrency_input, 9, 1)
+        grid.addWidget(save_button, 10, 3)
         self._update_translation_settings_visibility()
         layout.addWidget(card)
         layout.addStretch(1)
@@ -465,6 +596,72 @@ class AppWindow(FluentWindow):
         self.rerun_button.setEnabled(not _active(task.get("status")))
         self.delete_button.setEnabled(not _active(task.get("status")))
         self.open_video_button.setEnabled(bool(task.get("final_video_path")))
+        awaiting_review = task.get("status") == "awaiting_review"
+        self.review_card.setVisible(awaiting_review)
+        if awaiting_review and self.client and task.get("session_path"):
+            self._load_translation_review(task["id"])
+        elif not awaiting_review:
+            self.translation_table.setRowCount(0)
+
+    def _load_translation_review(self, task_id: str) -> None:
+        if not self.client:
+            return
+        self._job(
+            lambda: self.client.get_task_translation(task_id),
+            self._translation_review_loaded,
+            self._translation_review_error,
+        )
+
+    def _translation_review_loaded(self, payload: dict[str, Any]) -> None:
+        segments = payload.get("segments") or []
+        self._translation_segments = segments
+        self.translation_table.setRowCount(len(segments))
+        for row, item in enumerate(segments):
+            self.translation_table.setItem(row, 0, _item(row + 1))
+            self.translation_table.setItem(row, 1, _item(item.get("src", "")))
+            self.translation_table.setItem(row, 2, _editable_item(item.get("dst") or item.get("zh", "")))
+            start = item.get("start_time", 0)
+            end = item.get("end_time", 0)
+            self.translation_table.setItem(row, 3, _item(f"{start}-{end} ms"))
+        self.translation_table.resizeColumnsToContents()
+
+    def _translation_review_error(self, message: str) -> None:
+        self._error(message)
+
+    def _collect_translation_segments(self) -> list[dict[str, Any]]:
+        segments = [dict(item) for item in getattr(self, "_translation_segments", [])]
+        for row in range(self.translation_table.rowCount()):
+            if row >= len(segments):
+                break
+            dst_item = self.translation_table.item(row, 2)
+            if dst_item is not None:
+                segments[row]["dst"] = dst_item.text().strip()
+        return segments
+
+    def save_translation_review(self) -> None:
+        if not self.client or not self.current_task_id:
+            return
+        segments = self._collect_translation_segments()
+        task_id = self.current_task_id
+
+        def save() -> dict[str, Any]:
+            assert self.client
+            return self.client.save_task_translation(task_id, segments)
+
+        self._job(save, lambda _: self._toast(self._t("Translation saved.")), self._error)
+
+    def continue_after_translation_review(self) -> None:
+        if not self.client or not self.current_task_id:
+            return
+        segments = self._collect_translation_segments()
+        task_id = self.current_task_id
+
+        def continue_task() -> dict[str, Any]:
+            assert self.client
+            self.client.save_task_translation(task_id, segments)
+            return self.client.continue_after_review(task_id)
+
+        self._job(continue_task, self._created_task, self._error)
 
     def choose_upload_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -619,6 +816,143 @@ class AppWindow(FluentWindow):
         else:
             self._error(self._t("Output audio is not available yet."))
 
+    def choose_separate_media(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self._t("Choose media file"),
+            str(self.repo_root),
+            self._t("Media Files (*.mp4 *.mov *.m4v *.mkv *.webm *.avi *.flv *.wmv *.wav *.mp3 *.flac *.ogg *.m4a);;All Files (*)"),
+        )
+        if path:
+            self.separate_media_file = Path(path)
+            self.separate_media_label.setText(self.separate_media_file.name)
+
+    def run_vocal_separation(self) -> None:
+        if not self.client or self._separate_busy:
+            return
+        if not self.separate_media_file:
+            self._error(self._t("Choose a media file."))
+            return
+
+        self._separate_busy = True
+        self.separate_button.setEnabled(False)
+        self.audio_log_box.setPlainText(self._t("Separating vocals..."))
+        media = self.separate_media_file
+
+        def separate() -> dict[str, Any]:
+            assert self.client
+            return self.client.separate_vocals(media)
+
+        self._job(separate, self._separation_done, self._separation_error)
+
+    def _separation_done(self, result: dict[str, Any]) -> None:
+        self._separate_busy = False
+        self.separate_button.setEnabled(True)
+        self.separate_vocals_file = Path(result["vocals_path"])
+        self.separate_bgm_file = Path(result["bgm_path"])
+        self.separate_vocals_label.setText(str(self.separate_vocals_file))
+        self.separate_bgm_label.setText(str(self.separate_bgm_file))
+        summary = self._t("Vocal separation completed.")
+        log = result.get("log") or ""
+        self.audio_log_box.setPlainText(f"{summary}\n{log}".strip())
+        self._toast(summary)
+
+    def _separation_error(self, message: str) -> None:
+        self._separate_busy = False
+        self.separate_button.setEnabled(True)
+        self.audio_log_box.setPlainText(message)
+        self._error(message)
+
+    def open_separate_vocals(self) -> None:
+        path = self.separate_vocals_file
+        if path and path.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        else:
+            self._error(self._t("Vocals output is not available yet."))
+
+    def open_separate_bgm(self) -> None:
+        path = self.separate_bgm_file
+        if path and path.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        else:
+            self._error(self._t("BGM output is not available yet."))
+
+    def use_separated_vocals_for_split(self) -> None:
+        if not self.separate_vocals_file or not self.separate_vocals_file.exists():
+            self._error(self._t("Vocals output is not available yet."))
+            return
+        self.split_audio_file = self.separate_vocals_file
+        self.split_audio_label.setText(self.split_audio_file.name)
+        self._toast(self._t("Using separated vocals for slicing."))
+
+    def choose_split_audio(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self._t("Choose audio file"),
+            str(self.repo_root),
+            self._t("Audio Files (*.wav *.mp3 *.flac *.ogg *.m4a);;All Files (*)"),
+        )
+        if path:
+            self.split_audio_file = Path(path)
+            self.split_audio_label.setText(self.split_audio_file.name)
+
+    def choose_split_segments(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self._t("Choose segments JSON"),
+            str(self.repo_root),
+            self._t("JSON Files (*.json);;All Files (*)"),
+        )
+        if path:
+            self.split_segments_file = Path(path)
+            self.split_segments_label.setText(self.split_segments_file.name)
+
+    def run_audio_split(self) -> None:
+        if not self.client or self._split_busy:
+            return
+        if not self.split_audio_file:
+            self._error(self._t("Choose an audio file."))
+            return
+        if not self.split_segments_file:
+            self._error(self._t("Choose a segments JSON file."))
+            return
+
+        self._split_busy = True
+        self.split_button.setEnabled(False)
+        self.audio_log_box.setPlainText(self._t("Splitting audio..."))
+        audio = self.split_audio_file
+        segments = self.split_segments_file
+
+        def split() -> dict[str, Any]:
+            assert self.client
+            return self.client.split_audio_segments(audio, segments)
+
+        self._job(split, self._split_done, self._split_error)
+
+    def _split_done(self, result: dict[str, Any]) -> None:
+        self._split_busy = False
+        self.split_button.setEnabled(True)
+        self.split_output_dir = Path(result["output_dir"])
+        self.split_output_label.setText(str(self.split_output_dir))
+        count = result.get("segment_count", 0)
+        summary = self._t("Created {count} audio segments.").format(count=count)
+        log = result.get("log") or ""
+        self.audio_log_box.setPlainText(f"{summary}\n{log}".strip())
+        self._toast(summary)
+
+    def _split_error(self, message: str) -> None:
+        self._split_busy = False
+        self.split_button.setEnabled(True)
+        self.audio_log_box.setPlainText(message)
+        self._error(message)
+
+    def open_split_output(self) -> None:
+        path = self.split_output_dir
+        if path and path.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        else:
+            self._error(self._t("Segments output is not available yet."))
+
     def load_settings(self) -> None:
         if not self.client:
             return
@@ -644,6 +978,8 @@ class AppWindow(FluentWindow):
         )
         mode_index = self.translation_mode_combo.findData(translate_settings.get("mode", "openai"))
         self.translation_mode_combo.setCurrentIndex(max(mode_index, 0))
+        review_index = self.review_combo.findData(translate_settings.get("review_enabled", "true"))
+        self.review_combo.setCurrentIndex(max(review_index, 0))
         self.base_url_input.setText(openai.get("base_url", ""))
         self.api_key_input.setText(openai.get("api_key", "") if openai.get("has_api_key") else "")
         self.model_input.setText(openai.get("model", ""))
@@ -677,13 +1013,14 @@ class AppWindow(FluentWindow):
         proxy_port = self.proxy_input.text().strip()
         language = self.language_combo.currentData() or self.language
         translation_mode = self.translation_mode_combo.currentData() or "openai"
+        review_enabled = self.review_combo.currentData() or "true"
 
         def save() -> None:
             assert self.client
             save_language(language)
             if cookie:
                 self.client.save_cookie(cookie)
-            self.client.save_translate_settings(translation_mode)
+            self.client.save_translate_settings(translation_mode, review_enabled)
             self.client.save_openai_settings(settings)
             self.client.save_ytdlp_settings(proxy_port)
 
@@ -769,6 +1106,14 @@ def _item(value: Any):
 
     item = QTableWidgetItem(str(value or ""))
     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+    return item
+
+
+def _editable_item(value: Any):
+    from PyQt5.QtWidgets import QTableWidgetItem
+
+    item = QTableWidgetItem(str(value or ""))
+    item.setFlags(item.flags() | Qt.ItemIsEditable)
     return item
 
 

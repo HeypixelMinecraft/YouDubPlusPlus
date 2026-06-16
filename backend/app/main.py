@@ -19,7 +19,9 @@ from .mcp_server import create_mcp_asgi_app
 from .pipeline import run_task
 from .sanitize import sanitize_text
 from .task_actions import purge_task, rerun_task as rerun_existing_task
+from .task_actions import continue_after_review as continue_review_task
 from .task_actions import resume_task as resume_failed_task
+from .translation_io import load_translation_segments, save_translation_segments
 from .youtube import LOCAL_UPLOAD_DIRECTIONS, extract_video_id, is_local_upload_url
 
 ALLOWED_VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi", ".flv", ".wmv"}
@@ -55,6 +57,11 @@ class OpenAIModelsRequest(BaseModel):
 
 class TranslationSettingsUpdate(BaseModel):
     mode: str = "openai"
+    review_enabled: str = ""
+
+
+class TranslationSegmentsUpdate(BaseModel):
+    segments: list[dict]
 
 
 class YtdlpSettingsUpdate(BaseModel):
@@ -247,6 +254,51 @@ def resume_task(task_id: str) -> dict:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+@app.get("/api/tasks/{task_id}/translation")
+def get_task_translation(task_id: str) -> dict:
+    task = database.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    session_path = task.get("session_path")
+    if not session_path:
+        raise HTTPException(status_code=404, detail="Task session is missing.")
+    try:
+        path, segments = load_translation_segments(Path(session_path))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"path": str(path), "segments": segments}
+
+
+@app.post("/api/tasks/{task_id}/translation")
+def save_task_translation(task_id: str, payload: TranslationSegmentsUpdate) -> dict:
+    task = database.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    if task["status"] != "awaiting_review":
+        raise HTTPException(status_code=409, detail="Translation can only be edited while awaiting review.")
+    session_path = task.get("session_path")
+    if not session_path:
+        raise HTTPException(status_code=404, detail="Task session is missing.")
+    try:
+        path, _ = load_translation_segments(Path(session_path))
+        save_translation_segments(path, payload.segments)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return get_task_translation(task_id)
+
+
+@app.post("/api/tasks/{task_id}/continue")
+def continue_task_after_review(task_id: str) -> dict:
+    try:
+        return continue_review_task(task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @app.get("/api/tasks/{task_id}/log", response_class=PlainTextResponse)
 def task_log(task_id: str) -> str:
     task = database.get_task(task_id)
@@ -332,7 +384,8 @@ def get_translate_settings() -> dict:
 @app.post("/api/settings/translate")
 def save_translate_settings(payload: TranslationSettingsUpdate) -> dict:
     try:
-        database.save_translate_settings(payload.mode)
+        review_enabled = payload.review_enabled.strip() or None
+        database.save_translate_settings(payload.mode, review_enabled=review_enabled)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return get_translate_settings()

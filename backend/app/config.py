@@ -63,8 +63,10 @@ def translate_defaults() -> dict[str, str]:
     mode = os.getenv("TRANSLATE_MODE", "openai").strip().lower() or "openai"
     if mode not in {"openai", "google", "youdao"}:
         mode = "openai"
+    review = os.getenv("YOUDUB_TRANSLATION_REVIEW", "true").strip().lower()
     return {
         "mode": mode,
+        "review_enabled": "false" if review in {"0", "false", "no", "off"} else "true",
     }
 
 

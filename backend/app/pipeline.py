@@ -69,7 +69,8 @@ class PipelineRunner:
 
         try:
             for stage in STAGES:
-                self._run_stage(stage.name)
+                if self._run_stage(stage.name):
+                    return
             database.update_task(
                 self.task_id,
                 status="succeeded",
@@ -113,11 +114,11 @@ class PipelineRunner:
                 return entry["status"]
         return None
 
-    def _run_stage(self, stage: str) -> None:
+    def _run_stage(self, stage: str) -> bool:
         if self._stage_status(stage) == "succeeded":
             self._stage_handlers[stage](database.get_task(self.task_id))
             self.log(f"[{stage}] Reused cached output")
-            return
+            return False
         database.update_task(self.task_id, current_stage=stage)
         database.update_stage(
             self.task_id,
@@ -137,6 +138,35 @@ class PipelineRunner:
             last_message="Completed",
         )
         self.log(f"[{stage}] Completed")
+        if stage == "translate" and self._should_pause_for_translation_review():
+            self._pause_for_translation_review()
+            return True
+        return False
+
+    def _should_pause_for_translation_review(self) -> bool:
+        from .translation_io import is_translation_reviewed, translation_review_enabled
+
+        if not translation_review_enabled():
+            return False
+        session = self.artifacts.session
+        if not session:
+            return False
+        return not is_translation_reviewed(session)
+
+    def _pause_for_translation_review(self) -> None:
+        database.update_task(
+            self.task_id,
+            status="awaiting_review",
+            current_stage="translate",
+            completed_at=None,
+            error_message=None,
+        )
+        database.update_stage(
+            self.task_id,
+            "translate",
+            last_message="Awaiting translation review",
+        )
+        self.log("Task paused for translation review")
 
     def _download(self, task: dict) -> None:
         source = detect_source(task["url"])

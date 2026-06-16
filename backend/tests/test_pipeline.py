@@ -9,6 +9,7 @@ from backend.app.pipeline import PipelineRunner
 def configure_db(monkeypatch, tmp_path):
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "test.sqlite")
     database.init_db()
+    database.save_translate_settings("openai", review_enabled="false")
 
 
 def _noop_stage(self, task):

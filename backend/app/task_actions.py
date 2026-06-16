@@ -55,3 +55,29 @@ def resume_task(task_id: str) -> dict:
     if not task:
         raise RuntimeError("Task not found.")
     return task
+
+
+def continue_after_review(task_id: str) -> dict:
+    task = database.get_task(task_id)
+    if not task:
+        raise ValueError("Task not found.")
+    if task["status"] != "awaiting_review":
+        raise RuntimeError("Task is not awaiting translation review.")
+    session_path = task.get("session_path")
+    if not session_path:
+        raise RuntimeError("Task session is missing.")
+
+    from .translation_io import mark_translation_reviewed
+
+    mark_translation_reviewed(Path(session_path))
+    database.update_task(
+        task_id,
+        status="queued",
+        error_message=None,
+        completed_at=None,
+    )
+    worker.enqueue(task_id)
+    task = database.get_task(task_id)
+    if not task:
+        raise RuntimeError("Task not found.")
+    return task
