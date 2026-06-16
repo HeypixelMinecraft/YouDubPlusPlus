@@ -68,7 +68,7 @@ brew install ffmpeg
 git clone https://github.com/HeypixelMinecraft/YouDubPlusPlus.git
 cd YouDubPlusPlus
 git submodule update --init --recursive
-uv venv --python 3.12 .venv
+uv venv --python 3.11 .venv
 uv pip install -r requirements.txt
 ```
 
