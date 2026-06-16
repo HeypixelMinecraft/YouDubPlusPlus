@@ -99,3 +99,31 @@ def generate_tts(translation_file: Path, vocals_dir: Path, session: Path, log: L
             log(f"VoxCPM2 [{index}/{total}] wrote {output_file.name} using {reference.name}")
 
     return output_dir
+
+
+def synthesize_speech(
+    text: str,
+    reference_wav_path: Path,
+    output_file: Path,
+    log: LogFn | None = None,
+) -> Path:
+    model = _load_model(log)
+    cfg_value = float(os.getenv("VOXCPM_CFG_VALUE", "2.0"))
+    inference_timesteps = int(os.getenv("VOXCPM_INFERENCE_TIMESTEPS", "10"))
+    if log:
+        log(
+            f"VoxCPM2 synthesizing -> {output_file.name}, "
+            f"reference={reference_wav_path.name}, cfg_value={cfg_value}, "
+            f"inference_timesteps={inference_timesteps}"
+        )
+    wav = model.generate(
+        text=text,
+        reference_wav_path=str(reference_wav_path),
+        cfg_value=cfg_value,
+        inference_timesteps=inference_timesteps,
+    )
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(output_file, wav, model.tts_model.sample_rate)
+    if log:
+        log(f"VoxCPM2 wrote {output_file}")
+    return output_file

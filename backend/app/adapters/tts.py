@@ -28,3 +28,17 @@ def generate_tts(
     if log:
         log("Generating TTS with VoxCPM2")
     return _voxcpm()(translation_file, vocals_dir, session), "VoxCPM2"
+
+
+def synthesize_speech(
+    text: str,
+    reference_wav_path: Path,
+    output_file: Path,
+    log: LogFn | None = None,
+) -> str:
+    if log:
+        log("Synthesizing speech with VoxCPM2")
+    from .voxcpm import synthesize_speech as vox_synthesize
+
+    vox_synthesize(text, reference_wav_path, output_file, log=log)
+    return "VoxCPM2"

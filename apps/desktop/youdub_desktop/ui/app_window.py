@@ -70,6 +70,9 @@ class AppWindow(FluentWindow):
         self.current_task_id: str | None = None
         self.current_task: dict[str, Any] | None = None
         self.upload_file: Path | None = None
+        self.tts_reference_file: Path | None = None
+        self.tts_output_file: Path | None = None
+        self._tts_busy = False
         self._refresh_busy = False
         self._last_log_text = ""
         self._last_log_task_id: str | None = None
@@ -83,10 +86,12 @@ class AppWindow(FluentWindow):
 
         self.tasks_page = self._build_tasks_page()
         self.detail_page = self._build_detail_page()
+        self.tts_page = self._build_tts_page()
         self.mcp_page = self._build_mcp_page()
         self.settings_page = self._build_settings_page()
         self.addSubInterface(self.tasks_page, FIF.HOME, self._t("Tasks"))
         self.addSubInterface(self.detail_page, FIF.VIDEO, self._t("Detail"))
+        self.addSubInterface(self.tts_page, FIF.MUSIC, self._t("TTS"))
         self.addSubInterface(self.mcp_page, FIF.CONNECT, self._t("MCP"))
         self.addSubInterface(self.settings_page, FIF.SETTING, self._t("Settings"))
 
@@ -209,6 +214,55 @@ class AppWindow(FluentWindow):
         self.log_box.setReadOnly(True)
         self.log_box.setPlaceholderText(self._t("Logs will appear when a task starts."))
         layout.addWidget(self.log_box, 1)
+        return page
+
+    def _build_tts_page(self) -> QWidget:
+        page = _page("ttsPage")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 26, 28, 26)
+        layout.setSpacing(18)
+        layout.addWidget(SubtitleLabel(self._t("TTS tool")))
+
+        card = CardWidget()
+        form = QGridLayout(card)
+        form.setContentsMargins(22, 18, 22, 18)
+        form.setHorizontalSpacing(14)
+        form.setVerticalSpacing(12)
+
+        self.tts_text = TextEdit()
+        self.tts_text.setPlaceholderText(self._t("Enter text to synthesize"))
+        self.tts_reference_label = BodyLabel(self._t("No reference audio selected"))
+        choose_reference = PushButton(self._t("Choose reference audio"))
+        choose_reference.setIcon(FIF.FOLDER)
+        choose_reference.clicked.connect(self.choose_tts_reference)
+        self.tts_output_label = BodyLabel(self._t("Auto save to workfolder/tts_tool"))
+        choose_output = PushButton(self._t("Choose output file"))
+        choose_output.setIcon(FIF.SAVE)
+        choose_output.clicked.connect(self.choose_tts_output)
+        self.tts_generate_button = PrimaryPushButton(self._t("Generate speech"))
+        self.tts_generate_button.setIcon(FIF.PLAY)
+        self.tts_generate_button.clicked.connect(self.run_tts_synthesis)
+        self.tts_open_button = PushButton(self._t("Open output audio"))
+        self.tts_open_button.setIcon(FIF.MUSIC)
+        self.tts_open_button.setEnabled(False)
+        self.tts_open_button.clicked.connect(self.open_tts_output)
+
+        form.addWidget(StrongBodyLabel(self._t("Text")), 0, 0, Qt.AlignTop)
+        form.addWidget(self.tts_text, 0, 1, 1, 3)
+        form.addWidget(StrongBodyLabel(self._t("Reference audio")), 1, 0)
+        form.addWidget(self.tts_reference_label, 1, 1)
+        form.addWidget(choose_reference, 1, 2)
+        form.addWidget(StrongBodyLabel(self._t("Output file")), 2, 0)
+        form.addWidget(self.tts_output_label, 2, 1)
+        form.addWidget(choose_output, 2, 2)
+        form.addWidget(self.tts_generate_button, 3, 2)
+        form.addWidget(self.tts_open_button, 3, 3)
+        layout.addWidget(card)
+
+        self.tts_log_box = PlainTextEdit()
+        self.tts_log_box.setReadOnly(True)
+        self.tts_log_box.setPlaceholderText(self._t("TTS logs will appear here."))
+        layout.addWidget(self.tts_log_box, 1)
         return page
 
     def _build_mcp_page(self) -> QWidget:
@@ -494,6 +548,76 @@ class AppWindow(FluentWindow):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
         else:
             self._error(self._t("Final video is not available yet."))
+
+    def choose_tts_reference(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            self._t("Choose reference audio"),
+            str(self.repo_root),
+            self._t("Audio Files (*.wav *.mp3 *.flac *.ogg *.m4a);;All Files (*)"),
+        )
+        if path:
+            self.tts_reference_file = Path(path)
+            self.tts_reference_label.setText(self.tts_reference_file.name)
+
+    def choose_tts_output(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            self._t("Choose output file"),
+            str(self.repo_root / "tts_output.wav"),
+            self._t("WAV Files (*.wav);;All Files (*)"),
+        )
+        if path:
+            self.tts_output_file = Path(path)
+            self.tts_output_label.setText(str(self.tts_output_file))
+
+    def run_tts_synthesis(self) -> None:
+        if not self.client or self._tts_busy:
+            return
+        text = self.tts_text.toPlainText().strip()
+        if not text:
+            self._error(self._t("Enter text to synthesize."))
+            return
+        if not self.tts_reference_file:
+            self._error(self._t("Choose a reference audio file."))
+            return
+
+        self._tts_busy = True
+        self.tts_generate_button.setEnabled(False)
+        self.tts_log_box.setPlainText(self._t("Generating speech..."))
+        reference = self.tts_reference_file
+        output = self.tts_output_file
+
+        def synthesize() -> dict[str, Any]:
+            assert self.client
+            return self.client.synthesize_tts(text, reference, output)
+
+        self._job(synthesize, self._tts_synthesized, self._tts_synthesis_error)
+
+    def _tts_synthesized(self, result: dict[str, Any]) -> None:
+        self._tts_busy = False
+        self.tts_generate_button.setEnabled(True)
+        self.tts_output_file = Path(result["output_path"])
+        self.tts_output_label.setText(str(self.tts_output_file))
+        log = result.get("log") or ""
+        backend = result.get("backend") or ""
+        summary = self._t("Speech generated with {backend}.").format(backend=backend)
+        self.tts_log_box.setPlainText(f"{summary}\n{log}".strip())
+        self.tts_open_button.setEnabled(self.tts_output_file.exists())
+        self._toast(summary)
+
+    def _tts_synthesis_error(self, message: str) -> None:
+        self._tts_busy = False
+        self.tts_generate_button.setEnabled(True)
+        self.tts_log_box.setPlainText(message)
+        self._error(message)
+
+    def open_tts_output(self) -> None:
+        path = self.tts_output_file
+        if path and path.exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        else:
+            self._error(self._t("Output audio is not available yet."))
 
     def load_settings(self) -> None:
         if not self.client:

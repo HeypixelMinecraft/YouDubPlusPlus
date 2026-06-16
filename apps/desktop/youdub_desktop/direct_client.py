@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 import shutil
 import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
+
+from pydub import AudioSegment
 
 from backend.app import database, worker
 from backend.app.adapters.local_video import remove_upload, upload_dir
@@ -166,6 +169,49 @@ class DirectClient:
             raise RuntimeError("Proxy port must be between 1 and 65535.")
         database.save_ytdlp_settings(cleaned)
         return self.get_ytdlp_settings()
+
+    def synthesize_tts(
+        self,
+        text: str,
+        reference_path: Path,
+        output_path: Path | None = None,
+    ) -> dict[str, Any]:
+        cleaned = text.strip()
+        if not cleaned:
+            raise RuntimeError("Text is required.")
+        reference = reference_path.resolve()
+        if not reference.exists():
+            raise RuntimeError("Reference audio not found.")
+
+        min_reference_ms = int(os.getenv("VOXCPM_MIN_REFERENCE_MS", "1200"))
+        duration_ms = len(AudioSegment.from_file(reference))
+        if duration_ms < min_reference_ms:
+            raise RuntimeError(f"Reference audio must be at least {min_reference_ms} ms.")
+
+        out_dir = WORKFOLDER / "tts_tool"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        if output_path is None:
+            stem = sanitize_text(cleaned[:40]) or "tts"
+            target = out_dir / f"{stem}.wav"
+            if target.exists():
+                target = out_dir / f"{stem}_{uuid.uuid4().hex[:8]}.wav"
+        else:
+            target = output_path.resolve()
+            target.parent.mkdir(parents=True, exist_ok=True)
+
+        log_lines: list[str] = []
+
+        def log(message: str) -> None:
+            log_lines.append(message)
+
+        from backend.app.adapters.tts import synthesize_speech
+
+        backend = synthesize_speech(cleaned, reference, target, log=log)
+        return {
+            "output_path": str(target),
+            "backend": backend,
+            "log": "\n".join(log_lines),
+        }
 
 
 def _is_inside_workfolder(path: Path) -> bool:
