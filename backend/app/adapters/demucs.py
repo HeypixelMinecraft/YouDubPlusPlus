@@ -118,6 +118,7 @@ def separate_audio(video_file: Path, session: Path, log: Callable[[str], None] |
     save_audio = demucs_api.save_audio
 
     media_dir = session / "media"
+    media_dir.mkdir(parents=True, exist_ok=True)
     vocals_file = media_dir / "audio_vocals.wav"
     bgm_file = media_dir / "audio_bgm.wav"
     if vocals_file.exists() and bgm_file.exists():
