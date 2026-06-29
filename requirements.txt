@@ -9,7 +9,7 @@ yt-dlp[default]
 dora-search>=0.1.12
 diffq>=0.2.4
 julius>=0.2.8
-lameenc>=1.8.2
+lameenc>=1.8.4
 openunmix
 openai-whisper
 spacy
