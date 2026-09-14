@@ -6,7 +6,7 @@ python-multipart
 mcp
 openai
 yt-dlp[default]
-dora-search>=0.1.12
+dora-search>=0.1.13
 diffq>=0.2.4
 julius>=0.2.8
 lameenc>=1.8.4
